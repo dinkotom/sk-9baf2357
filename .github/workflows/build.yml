@@ -37,6 +37,8 @@ jobs:
           BAKALARI_BASE_URL: ${{ secrets.BAKALARI_BASE_URL }}
           BAKALARI_USERNAME: ${{ secrets.BAKALARI_USERNAME }}
           BAKALARI_PASSWORD: ${{ secrets.BAKALARI_PASSWORD }}
+          STATE_API_URL: ${{ secrets.STATE_API_URL }}
+          STATE_API_SECRET: ${{ secrets.STATE_API_SECRET }}
         run: python fetch_messages.py
 
       - name: Nainstalovat Claude Code
@@ -56,6 +58,8 @@ jobs:
       - name: Sestavit šifrovanou stránku
         env:
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          STATE_API_URL: ${{ secrets.STATE_API_URL }}
+          STATE_API_SECRET: ${{ secrets.STATE_API_SECRET }}
         run: python build_page.py
 
       - uses: actions/upload-pages-artifact@v3

@@ -1,0 +1,12 @@
+name = "skola-state"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+
+# ALLOW_ORIGIN omezuje CORS jen na naši stránku
+[vars]
+ALLOW_ORIGIN = "https://dinkotom.github.io"
+
+# KV namespace — id doplň podle výstupu `wrangler kv namespace create STATE`
+[[kv_namespaces]]
+binding = "KV"
+id = "PASTE_KV_NAMESPACE_ID"

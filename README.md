@@ -30,6 +30,15 @@ takže se účtuje z předplatného, ne z placeného API.
 | `BAKALARI_PASSWORD` | heslo žáka |
 | `CLAUDE_CODE_OAUTH_TOKEN` | z `claude setup-token` (sk-ant-oat01-…) |
 | `APP_PASSWORD` | rodinné heslo pro odemčení stránky (stejné jako Účty) |
+| `STATE_API_URL` | URL Cloudflare Workeru (odškrtávání), volitelné |
+| `STATE_API_SECRET` | sdílené tajemství k Workeru, volitelné |
+
+## Odškrtávání vyřízených zpráv
+
+Volitelná funkce: u každé zprávy je zaškrtávátko „vyřízeno". Odškrtnuté zprávy
+se skryjí (synchronizovaně na všech zařízeních) a AI digest je přestane
+zmiňovat. Stav drží malý **Cloudflare Worker + KV** — viz [worker/README.md](worker/README.md).
+Bez nastavených `STATE_API_*` secrets se stránka chová jako dřív (bez zaškrtávátek).
 
 ## Lokální test
 

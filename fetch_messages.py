@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import urllib.request
 from datetime import datetime, timedelta, timezone
 
 from bakalari_client import BakalariClient, BakalariError
@@ -63,6 +64,24 @@ def normalize(raw, kind: str, cutoff):
     return out
 
 
+def get_dismissed_ids():
+    """Načte seznam „vyřízených" ID ze stavového Workeru (pokud je nakonfigurován)."""
+    api_url = os.getenv("STATE_API_URL")
+    api_secret = os.getenv("STATE_API_SECRET")
+    if not (api_url and api_secret):
+        return []
+    try:
+        req = urllib.request.Request(
+            api_url.rstrip("/") + "/state",
+            headers={"Authorization": f"Bearer {api_secret}"},
+        )
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return [str(x) for x in (json.loads(r.read().decode()).get("dismissed") or [])]
+    except Exception as e:
+        print(f"VAROVÁNÍ: nepodařilo se načíst vyřízené ze stavu: {e}", file=sys.stderr)
+        return []
+
+
 def main():
     base = os.getenv("BAKALARI_BASE_URL")
     user = os.getenv("BAKALARI_USERNAME")
@@ -86,11 +105,14 @@ def main():
     received.sort(key=lambda x: x["sent"] or "", reverse=True)
     noticeboard.sort(key=lambda x: x["sent"] or "", reverse=True)
 
+    dismissed_ids = get_dismissed_ids()
+
     ts = datetime.now().strftime("%-d.%-m.%Y %H:%M")
     data = {
         "ts": ts,
         "student": student,
         "unread_count": sum(1 for m in received if not m["read"]),
+        "dismissed_ids": dismissed_ids,
         "received": received,
         "noticeboard": noticeboard,
     }
@@ -98,7 +120,8 @@ def main():
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     print(f"Staženo: {len(received)} zpráv ({data['unread_count']} nepřečtených), "
-          f"{len(noticeboard)} na nástěnce. Žák: {student}", file=sys.stderr)
+          f"{len(noticeboard)} na nástěnce, {len(dismissed_ids)} vyřízených. "
+          f"Žák: {student}", file=sys.stderr)
 
 
 if __name__ == "__main__":

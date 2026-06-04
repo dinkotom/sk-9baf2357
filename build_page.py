@@ -93,6 +93,13 @@ PAGE = r"""<!DOCTYPE html>
   .badge{display:inline-block; background:var(--green); color:#06140d; font-size:.6rem;
     font-weight:700; letter-spacing:.08em; padding:2px 7px; border-radius:999px; vertical-align:middle; margin-left:8px;}
   .unread{border-color:rgba(76,201,154,.45); box-shadow:0 0 0 1px rgba(76,201,154,.18);}
+  .msg .chk{display:inline-flex; align-items:center; gap:6px; margin-top:12px;
+    font-size:.72rem; color:var(--muted); cursor:pointer; user-select:none;}
+  .msg .chk input{accent-color:var(--green); width:15px; height:15px; cursor:pointer;}
+  .msg.done{opacity:.5;}
+  .toolbar{display:flex; justify-content:flex-end; margin:8px 2px 0;}
+  .toolbar button{background:none; border:1px solid var(--line); color:var(--muted);
+    border-radius:999px; padding:5px 13px; font-family:inherit; font-size:.72rem; cursor:pointer;}
 
   .when-foot{text-align:center; color:var(--muted); font-size:.72rem; margin-top:18px;}
   .lockbtn{display:block; margin:14px auto 0; background:none; border:1px solid var(--line);
@@ -153,31 +160,76 @@ PAGE = r"""<!DOCTYPE html>
     return out.join('');
   }
 
+  var API=null, dismissed=new Set(), showDone=false, PAYLOAD=null;
+  function isDone(m){ return dismissed.has(String(m.id)); }
+
   function msgCard(m){
+    var done=isDone(m);
     var badge = m.read ? '' : '<span class="badge">nové</span>';
     var att = (m.attachments && m.attachments.length)
       ? '<div class="att">📎 '+m.attachments.map(esc).join(', ')+'</div>' : '';
-    return '<div class="card msg '+(m.read?'':'unread')+'">'+
+    var chk = API ? '<label class="chk"><input type="checkbox" class="chk" data-id="'+
+      esc(String(m.id))+'"'+(done?' checked':'')+'> vyřízeno</label>' : '';
+    return '<div class="card msg '+(m.read?'':'unread')+(done?' done':'')+'">'+
       '<div class="top"><span class="ttl">'+esc(m.title||'(bez předmětu)')+badge+'</span>'+
       '<span class="when">'+esc(m.sent_label||'')+'</span></div>'+
       '<div class="from">'+esc(m.sender||'')+'</div>'+
-      (m.text ? '<div class="body">'+esc(m.text)+'</div>' : '')+ att +'</div>';
+      (m.text ? '<div class="body">'+esc(m.text)+'</div>' : '')+ att + chk +'</div>';
+  }
+
+  function paintList(){
+    var p=PAYLOAD;
+    var recv=(p.received||[]).filter(function(m){return showDone||!isDone(m);});
+    var notice=(p.noticeboard||[]).filter(function(m){return showDone||!isDone(m);});
+    var doneCount=(p.received||[]).concat(p.noticeboard||[]).filter(isDone).length;
+    var h='';
+    if(recv.length){
+      var nNew=recv.filter(function(m){return !m.read && !isDone(m);}).length;
+      h += '<div class="sect">Zprávy ('+recv.length+(nNew?(', '+nNew+' nových'):'')+')</div>';
+      h += recv.map(msgCard).join('');
+    }
+    if(notice.length){ h += '<div class="sect">Nástěnka</div>'+notice.map(msgCard).join(''); }
+    if(!recv.length && !notice.length){
+      h += '<div class="card" style="text-align:center;color:var(--muted)">Vše vyřízeno 🎉</div>';
+    }
+    document.getElementById('list').innerHTML=h;
+    var tb=document.getElementById('done-toggle');
+    if(API && doneCount){ tb.style.display=''; tb.textContent=showDone?'Skrýt vyřízené':('Zobrazit vyřízené ('+doneCount+')'); }
+    else { tb.style.display='none'; }
   }
 
   function render(p){
+    PAYLOAD=p; API=p.api||null;
     var h='';
     if(p.digest){ h += '<div class="card digest">'+md(p.digest)+'</div>'; }
-    if(p.received && p.received.length){
-      h += '<div class="sect">Zprávy ('+p.received.length+', '+p.unread_count+' nových)</div>';
-      h += p.received.map(msgCard).join('');
-    }
-    if(p.noticeboard && p.noticeboard.length){
-      h += '<div class="sect">Nástěnka</div>';
-      h += p.noticeboard.map(msgCard).join('');
-    }
+    h += '<div class="toolbar"><button id="done-toggle" style="display:none"></button></div>';
+    h += '<div id="list"></div>';
     h += '<div class="when-foot">žák: '+esc(p.student||'')+' · aktualizováno '+esc(p.ts||'')+'</div>';
     h += '<button class="lockbtn" onclick="lockNow()">Zamknout</button>';
     dataEl.innerHTML=h; dataEl.classList.add('on'); lock.style.display='none';
+    document.getElementById('done-toggle').addEventListener('click', function(){ showDone=!showDone; paintList(); });
+    dataEl.addEventListener('change', function(e){
+      var t=e.target;
+      if(t && t.matches && t.matches('input.chk')){ toggleDone(t.getAttribute('data-id'), t.checked); }
+    });
+    paintList();
+    refreshState();
+  }
+
+  function authHeaders(){ return {'Authorization':'Bearer '+API.secret, 'Content-Type':'application/json'}; }
+  async function refreshState(){
+    if(!API) return;
+    try{
+      var r=await fetch(API.url+'/state', {headers:authHeaders()});
+      if(r.ok){ var j=await r.json(); dismissed=new Set((j.dismissed||[]).map(String)); paintList(); }
+    }catch(e){}
+  }
+  async function toggleDone(id, val){
+    if(!API) return;
+    if(val) dismissed.add(String(id)); else dismissed.delete(String(id));
+    paintList();
+    try{ await fetch(API.url+'/dismiss', {method:'POST', headers:authHeaders(),
+      body:JSON.stringify({id:String(id), dismissed:val})}); }catch(e){}
   }
   function lockNow(){ try{sessionStorage.removeItem('spw');}catch(e){}; location.reload(); }
 
@@ -249,6 +301,13 @@ def main():
         "received": data.get("received", []),
         "noticeboard": data.get("noticeboard", []),
     }
+    # Konfigurace stavového backendu jde DOVNITŘ šifrovaného payloadu —
+    # tajemství je tak dostupné až po odemčení rodinným heslem, nikdy v cleartextu.
+    api_url = os.getenv("STATE_API_URL")
+    api_secret = os.getenv("STATE_API_SECRET")
+    if api_url and api_secret:
+        payload["api"] = {"url": api_url.rstrip("/"), "secret": api_secret}
+
     enc = encrypt(payload, password)
     build_page(enc, configured=True)
     print(f"Hotovo: {len(payload['received'])} zpráv, digest {'ano' if digest else 'ne'}, zašifrováno.",
