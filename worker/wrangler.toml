@@ -9,4 +9,4 @@ ALLOW_ORIGIN = "https://dinkotom.github.io"
 # KV namespace — id doplň podle výstupu `wrangler kv namespace create STATE`
 [[kv_namespaces]]
 binding = "KV"
-id = "PASTE_KV_NAMESPACE_ID"
+id = "87395cbadd1d4b3b9abaa4a5840daf93"
