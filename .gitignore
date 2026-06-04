@@ -1,0 +1,6 @@
+public/
+_data/
+__pycache__/
+*.pyc
+.env
+secrets_input.txt

@@ -1,0 +1,85 @@
+name: build-and-deploy
+
+on:
+  schedule:
+    # GitHub cron je v UTC. V létě (CEST = UTC+2): 04:00→6:00, 15:00→17:00 Praha.
+    # V zimě (CET = UTC+1) se posune na 5:00 / 16:00.
+    - cron: "0 4 * * *"
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write   # keepalive
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Europe/Prague
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Stáhnout zprávy z Bakalářů
+        env:
+          BAKALARI_BASE_URL: ${{ secrets.BAKALARI_BASE_URL }}
+          BAKALARI_USERNAME: ${{ secrets.BAKALARI_USERNAME }}
+          BAKALARI_PASSWORD: ${{ secrets.BAKALARI_PASSWORD }}
+        run: python fetch_messages.py
+
+      - name: Nainstalovat Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Vytvořit AI digest (Claude, přes předplatné)
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "CLAUDE_CODE_OAUTH_TOKEN není nastaven – přeskakuji AI digest." >&2
+            exit 0
+          fi
+          cat _data/items.json | claude -p "$(cat prompt.md)" > _data/digest.md || \
+            echo "VAROVÁNÍ: digest selhal, pokračuji bez něj." >&2
+
+      - name: Sestavit šifrovanou stránku
+        env:
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+        run: python build_page.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Keepalive (prevent cron disable)
+        run: |
+          last=$(git log -1 --format=%ct)
+          days=$(( ($(date +%s) - last) / 86400 ))
+          echo "Dní od posledního commitu: $days"
+          if [ "$days" -ge 50 ]; then
+            git config user.name "keepalive-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "keepalive"
+            git push
+          fi
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
