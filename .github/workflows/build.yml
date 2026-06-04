@@ -41,19 +41,21 @@ jobs:
           STATE_API_SECRET: ${{ secrets.STATE_API_SECRET }}
         run: python fetch_messages.py
 
+      - name: Obnovit stav digestu (kvůli přeskočení Claude, když nic nového)
+        uses: actions/cache@v4
+        with:
+          path: _data/digest_state.json
+          key: digest-state-${{ github.run_id }}
+          restore-keys: |
+            digest-state-
+
       - name: Nainstalovat Claude Code
         run: npm install -g @anthropic-ai/claude-code
 
-      - name: Vytvořit AI digest (Claude, přes předplatné)
+      - name: Vytvořit AI digest (Claude jen když přibyly/změnily se zprávy)
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "CLAUDE_CODE_OAUTH_TOKEN není nastaven – přeskakuji AI digest." >&2
-            exit 0
-          fi
-          cat _data/items.json | claude -p "$(cat prompt.md)" > _data/digest.md || \
-            echo "VAROVÁNÍ: digest selhal, pokračuji bez něj." >&2
+        run: python make_digest.py
 
       - name: Sestavit šifrovanou stránku
         env:
