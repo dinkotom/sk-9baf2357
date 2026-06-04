@@ -38,7 +38,7 @@ PAGE = r"""<!DOCTYPE html>
 <meta name="robots" content="noindex, nofollow">
 <meta http-equiv="refresh" content="1800">
 <meta name="theme-color" content="#0c1410">
-<title>Škola</title>
+<title>Škola – Eda</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -113,7 +113,7 @@ PAGE = r"""<!DOCTYPE html>
 <div class="wrap">
   <header>
     <div class="kicker">Bakaláři · digest</div>
-    <h1>Škola<span class="d">.</span></h1>
+    <h1>Škola <span class="d">– Eda</span></h1>
     <div class="sub">Soukromé · chráněno heslem</div>
   </header>
 
