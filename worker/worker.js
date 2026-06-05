@@ -38,6 +38,25 @@ async function readSet(env) {
   return new Set(v ? JSON.parse(v) : []);
 }
 
+// Spustí GitHub build přes workflow_dispatch (spolehlivé, na rozdíl od GH cronu).
+async function dispatchBuild(env, repo, wf) {
+  if (!env.GH_TOKEN || !repo) return;
+  const r = await fetch(
+    `https://api.github.com/repos/${repo}/actions/workflows/${wf || "build.yml"}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + env.GH_TOKEN,
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "dinkotom-cron",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ref: "main" }),
+    },
+  );
+  console.log("dispatch", repo, r.status);
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === "OPTIONS") return new Response(null, { headers: cors(env) });
@@ -72,33 +91,22 @@ export default {
     return json({ error: "not found" }, env, 404);
   },
 
-  // Cloudflare Cron Trigger — spolehlivě spustí GitHub build v 6:00 a 17:00 Praha.
-  // (náhrada za nespolehlivý/zpožděný GitHub Actions schedule)
+  // Cloudflare Cron Triggers — spolehlivá náhrada za nespolehlivý GitHub cron.
+  //   "*/15 * * * *"        -> IDOS spoje (každých 15 min)
+  //   "0 4,5,15,16 * * *"   -> Škola (dispatch jen v 6:00 / 17:00 Praha, DST-safe)
   async scheduled(event, env, ctx) {
+    if (event.cron === "*/15 * * * *") {
+      ctx.waitUntil(dispatchBuild(env, env.IDOS_REPO, "build.yml"));
+      return;
+    }
+    // Škola: cron běží ve 4,5,15,16 UTC; dispatchni jen když je v Praze 6 nebo 17.
     const hour = parseInt(
       new Intl.DateTimeFormat("en-GB", {
         timeZone: "Europe/Prague", hour: "2-digit", hour12: false,
       }).format(new Date()),
       10,
     );
-    // DST-safe: cron běží ve 4,5,15,16 UTC; dispatchni jen když je v Praze 6 nebo 17.
     if (hour !== 6 && hour !== 17) return;
-    if (!env.GH_TOKEN) return;
-    const repo = env.GH_REPO;
-    const wf = env.GH_WORKFLOW || "build.yml";
-    const r = await fetch(
-      `https://api.github.com/repos/${repo}/actions/workflows/${wf}/dispatches`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + env.GH_TOKEN,
-          "Accept": "application/vnd.github+json",
-          "User-Agent": "skola-state-cron",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ref: "main" }),
-      },
-    );
-    console.log("dispatch build:", r.status);
+    ctx.waitUntil(dispatchBuild(env, env.GH_REPO, env.GH_WORKFLOW || "build.yml"));
   },
 };

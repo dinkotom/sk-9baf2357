@@ -7,12 +7,13 @@ compatibility_date = "2024-09-01"
 ALLOW_ORIGIN = "https://dinkotom.github.io"
 GH_REPO = "dinkotom/sk-9baf2357"
 GH_WORKFLOW = "build.yml"
+IDOS_REPO = "dinkotom/jr-45d291ec"
 
-# Spolehlivé spouštění buildu (náhrada za nespolehlivý GitHub cron).
-# Pokrývá 6:00 i 17:00 Praha v létě (UTC+2) i v zimě (UTC+1); worker pak
-# dispatchne build jen v cílové hodiny (viz scheduled() ve worker.js).
+# Spolehlivé spouštění buildů (náhrada za nespolehlivý GitHub cron):
+#   0 4,5,15,16 * * *  -> Škola (worker dispatchne jen v 6:00/17:00 Praha, DST-safe)
+#   */15 * * * *       -> IDOS spoje (každých 15 min)
 [triggers]
-crons = ["0 4,5,15,16 * * *"]
+crons = ["0 4,5,15,16 * * *", "*/15 * * * *"]
 
 # KV namespace — id doplň podle výstupu `wrangler kv namespace create STATE`
 [[kv_namespaces]]
