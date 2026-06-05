@@ -71,4 +71,34 @@ export default {
 
     return json({ error: "not found" }, env, 404);
   },
+
+  // Cloudflare Cron Trigger — spolehlivě spustí GitHub build v 6:00 a 17:00 Praha.
+  // (náhrada za nespolehlivý/zpožděný GitHub Actions schedule)
+  async scheduled(event, env, ctx) {
+    const hour = parseInt(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Prague", hour: "2-digit", hour12: false,
+      }).format(new Date()),
+      10,
+    );
+    // DST-safe: cron běží ve 4,5,15,16 UTC; dispatchni jen když je v Praze 6 nebo 17.
+    if (hour !== 6 && hour !== 17) return;
+    if (!env.GH_TOKEN) return;
+    const repo = env.GH_REPO;
+    const wf = env.GH_WORKFLOW || "build.yml";
+    const r = await fetch(
+      `https://api.github.com/repos/${repo}/actions/workflows/${wf}/dispatches`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + env.GH_TOKEN,
+          "Accept": "application/vnd.github+json",
+          "User-Agent": "skola-state-cron",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ref: "main" }),
+      },
+    );
+    console.log("dispatch build:", r.status);
+  },
 };
