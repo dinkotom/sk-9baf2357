@@ -1,0 +1,14 @@
+{
+  "name": "Čeněk",
+  "school": "ScioŠkola FM",
+  "class": "8. ročník",
+  "note": "ScioŠkola jede na Edookitu, který nemá rodičovské API – tenhle rozvrh se udržuje ručně. Zdroj: Edookit → Rozvrh.",
+  "_navod": "week: klíč = den v týdnu (1=po … 5=pá), hodnota = seznam bloků. Každý blok: hour (číslo/název), from, to, subject, volitelně abbrev, teacher, room, note.",
+  "week": {
+    "1": [],
+    "2": [],
+    "3": [],
+    "4": [],
+    "5": []
+  }
+}

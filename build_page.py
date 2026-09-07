@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """Sestaví šifrovanou statickou stránku „Škola“ pro GitHub Pages.
 
-Čte _data/items.json (z fetch_messages.py) a _data/digest.md (z `claude -p`),
+Čte _data/items.json (z fetch_messages.py), _data/digest.md (z `claude -p`)
+a _data/timetable.json (z fetch_timetable.py),
 payload ZAŠIFRUJE (AES-GCM, klíč z hesla přes PBKDF2-SHA256) a vygeneruje
 stránku, kde se obsah dešifruje AŽ V PROHLÍŽEČI po zadání rodinného hesla.
 
@@ -38,7 +39,7 @@ PAGE = r"""<!DOCTYPE html>
 <meta name="robots" content="noindex, nofollow">
 <meta http-equiv="refresh" content="1800">
 <meta name="theme-color" content="#0c1410">
-<title>Škola – Eda</title>
+<title>Škola</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -104,16 +105,55 @@ PAGE = r"""<!DOCTYPE html>
   .when-foot{text-align:center; color:var(--muted); font-size:.72rem; margin-top:18px;}
   .lockbtn{display:block; margin:14px auto 0; background:none; border:1px solid var(--line);
     color:var(--muted); border-radius:999px; padding:7px 16px; font-family:inherit; font-size:.74rem; cursor:pointer;}
+  /* přepínač sekcí */
+  nav.tabs{display:none; gap:6px; margin:22px 0 2px;}
+  nav.tabs.on{display:flex;}
+  nav.tabs button{flex:1; background:var(--panel); border:1px solid var(--line); color:var(--muted);
+    border-radius:12px; padding:11px 8px; font-family:inherit; font-size:.82rem; font-weight:600;
+    cursor:pointer; transition:background .15s,color .15s;}
+  nav.tabs button.sel{background:var(--green); border-color:var(--green); color:#06140d;}
+  nav.tabs .n{display:inline-block; background:var(--red); color:#2b0900; font-size:.6rem; font-weight:700;
+    padding:1px 6px; border-radius:999px; margin-left:6px; vertical-align:middle;}
+  nav.tabs button.sel .n{background:#06140d; color:var(--green);}
+
+  /* rozvrh */
+  .pills{display:flex; gap:6px; flex-wrap:wrap; margin:16px 2px 0;}
+  .pills button{background:none; border:1px solid var(--line); color:var(--muted); border-radius:999px;
+    padding:6px 14px; font-family:inherit; font-size:.75rem; cursor:pointer;}
+  .pills button.sel{border-color:var(--green); color:var(--green); background:rgba(76,201,154,.08);}
+  .tt .khead{display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:12px;}
+  .tt .who{font-family:"Fraunces",serif; font-size:1.15rem; font-weight:600;}
+  .tt .kmeta{font-size:.68rem; color:var(--muted); text-align:right; line-height:1.4;}
+  .tt .dayhead{font-size:.7rem; letter-spacing:.16em; text-transform:uppercase; color:var(--gold);
+    margin:16px 0 4px; padding-top:12px; border-top:1px solid var(--line);}
+  .tt .dayhead:first-of-type{margin-top:0; padding-top:0; border-top:0;}
+  .tt table{width:100%; border-collapse:collapse; font-size:.84rem;}
+  .tt td{padding:6px 0; vertical-align:top; border-top:1px solid var(--line);}
+  .tt tr:first-child td{border-top:0;}
+  .tt .h{width:1.3em; color:var(--muted); font-size:.7rem; padding-right:6px;}
+  .tt .t{width:3.5em; color:var(--muted); font-size:.7rem; white-space:nowrap; padding-right:8px;}
+  .tt .s{font-weight:600; line-height:1.3;}
+  .tt .r{text-align:right; color:var(--muted); font-size:.7rem; white-space:nowrap; padding-left:8px;}
+  .tt .note{font-size:.7rem; line-height:1.35; margin-top:3px; color:var(--muted);}
+  .tt tr.removed .s{color:var(--red); font-weight:500;}
+  .tt tr.removed .subj{text-decoration:line-through;}
+  .tt tr.removed .note, .tt tr.removed .r{color:var(--red);}
+  .tt tr.sub .s, .tt tr.sub .note{color:var(--gold);}
+  .tt tr.added .s, .tt tr.added .note{color:var(--green);}
+  .tt .empty{color:var(--muted); font-size:.85rem;}
+  .tt .warn{color:var(--gold); font-size:.76rem;}
+
   footer{margin-top:26px; text-align:center; font-size:.68rem; color:var(--muted);}
   footer a{color:var(--green);}
+  [hidden]{display:none!important;}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="kicker">Bakaláři · digest</div>
-    <h1>Škola <span class="d">– Eda</span></h1>
+    <div class="kicker">Bakaláři · rozvrh a zprávy</div>
+    <h1>Škola<span class="d">.</span></h1>
     <div class="sub">Soukromé · chráněno heslem</div>
   </header>
 
@@ -126,6 +166,11 @@ PAGE = r"""<!DOCTYPE html>
     </form>
     <div class="err" id="err"></div>
   </div>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="tt">Rozvrh</button>
+    <button data-tab="msgs">Zprávy<span class="n" id="tabn" style="display:none"></span></button>
+  </nav>
 
   <div id="data"></div>
 
@@ -158,6 +203,114 @@ PAGE = r"""<!DOCTYPE html>
     }
     closeUl();
     return out.join('');
+  }
+
+  // ---------- rozvrh ----------
+  var TT=null, ttRange=null, ttKid=null;
+  var DOW=['ne','po','út','st','čt','pá','so'];
+  var RANGES={dnes:'Dnes', zitra:'Zítra', tyden:'Týden'};
+
+  function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function shift(d,n){ var x=new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
+  function czLabel(d){ return DOW[d.getDay()]+' '+d.getDate()+'.'+(d.getMonth()+1)+'.'; }
+  function dayOf(kid, dt){ return (kid.days||[]).filter(function(d){return d.date===dt;})[0]||null; }
+  function lastDay(kid){ var ds=kid.days||[]; return ds.length? ds[ds.length-1].date : null; }
+
+  function lessonTable(day){
+    var rows=(day.lessons||[]).map(function(l){
+      var subj = l.subject || l.abbrev || (l.change_kind==='removed' ? 'odpadá' : '—');
+      var notes=[];
+      if(l.change) notes.push(l.change);
+      if(l.theme) notes.push(l.theme);
+      var right=[l.room, l.group].filter(Boolean).join(' · ');
+      return '<tr class="'+(l.change_kind||'')+'">'+
+        '<td class="h">'+esc(l.hour)+'</td>'+
+        '<td class="t">'+esc(l.from)+'</td>'+
+        '<td class="s"><span class="subj">'+esc(subj)+'</span>'+
+          (notes.length? '<div class="note">'+esc(notes.join(' · '))+'</div>' : '')+'</td>'+
+        '<td class="r">'+esc(right)+'</td></tr>';
+    });
+    return rows.length ? '<table>'+rows.join('')+'</table>' : '';
+  }
+
+  function dayBlock(kid, dt, withHead){
+    var day=dayOf(kid, dt), h='';
+    if(withHead){
+      var d=new Date(dt+'T00:00:00');
+      h += '<div class="dayhead">'+esc(day? day.label : czLabel(d))+
+           (day && day.desc ? ' · '+esc(day.desc) : '')+'</div>';
+    }
+    if(day){
+      var t=lessonTable(day);
+      h += t || '<div class="empty">volno 🎉</div>';
+    } else {
+      var stale=lastDay(kid);
+      h += (stale && dt>stale)
+        ? '<div class="warn">⚠ Tak daleko rozvrh ještě není načtený.</div>'
+        : '<div class="empty">volno 🎉</div>';
+    }
+    return h;
+  }
+
+  function kidCard(kid, dates, withHeads, withCycle){
+    var meta=[esc(kid.school||''), esc(kid['class']||'')];
+    if(withCycle){
+      var first=dates.map(function(d){return dayOf(kid,d);}).filter(Boolean)[0];
+      if(first && first.cycle) meta.push(esc(first.cycle));
+    }
+    var h='<div class="card tt"><div class="khead"><span class="who">'+esc(kid.name)+'</span>'+
+          '<span class="kmeta">'+meta.filter(Boolean).join('<br>')+'</span></div>';
+    if(kid.error){
+      h += '<div class="warn">⚠ '+esc(kid.error)+'</div>';
+    } else {
+      h += dates.map(function(dt){ return dayBlock(kid, dt, withHeads); }).join('');
+    }
+    return h+'</div>';
+  }
+
+  function paintTT(){
+    var el=document.getElementById('s-tt');
+    if(!el) return;
+    if(!TT || !(TT.kids||[]).length){
+      el.innerHTML='<div class="card"><div class="empty">Rozvrhy se nepodařilo načíst.</div></div>';
+      return;
+    }
+    var today=new Date(), h='';
+    h += '<div class="pills" id="p-range">'+Object.keys(RANGES).map(function(r){
+           return '<button data-r="'+r+'"'+(ttRange===r?' class="sel"':'')+'>'+RANGES[r]+'</button>';
+         }).join('')+'</div>';
+
+    if(ttRange==='tyden'){
+      h += '<div class="pills">'+TT.kids.map(function(k){
+             return '<button data-k="'+esc(k.key)+'"'+(ttKid===k.key?' class="sel"':'')+'>'+esc(k.name)+'</button>';
+           }).join('')+'</div>';
+      // v so/ne ukazuj rovnou příští týden
+      var dow=today.getDay();
+      var base=(dow===0)? shift(today,1) : (dow===6? shift(today,2) : today);
+      var monday=shift(base, -(((base.getDay()+6)%7)));
+      var dates=[0,1,2,3,4].map(function(i){ return iso(shift(monday,i)); });
+      var kid=TT.kids.filter(function(k){return k.key===ttKid;})[0]||TT.kids[0];
+      h += '<div class="sect">'+esc(czLabel(monday)+' – '+czLabel(shift(monday,4)))+'</div>';
+      h += kidCard(kid, dates, true, true);
+    } else {
+      var tgt=(ttRange==='zitra')? shift(today,1) : today;
+      var dt=iso(tgt), wknd=(tgt.getDay()===0||tgt.getDay()===6);
+      h += '<div class="sect">'+esc(czLabel(tgt))+(wknd?' · víkend':'')+'</div>';
+      h += TT.kids.map(function(k){ return kidCard(k, [dt], false, true); }).join('');
+    }
+    h += '<div class="when-foot">aktualizováno '+esc((TT.ts)||'')+' · živě z Bakalářů (Ota, Eda)</div>';
+    el.innerHTML=h;
+  }
+
+  function setRange(r){ ttRange=r; paintTT(); }
+
+  function setTab(t){
+    var bs=document.querySelectorAll('#tabs button');
+    for(var i=0;i<bs.length;i++){ bs[i].classList.toggle('sel', bs[i].getAttribute('data-tab')===t); }
+    var tt=document.getElementById('s-tt'), ms=document.getElementById('s-msgs');
+    if(tt) tt.hidden=(t!=='tt');
+    if(ms) ms.hidden=(t!=='msgs');
+    try{ sessionStorage.setItem('stab', t); }catch(e){}
   }
 
   var API=null, dismissed=new Set(), showDone=false, PAYLOAD=null;
@@ -193,20 +346,48 @@ PAGE = r"""<!DOCTYPE html>
       h += '<div class="card" style="text-align:center;color:var(--muted)">Vše vyřízeno 🎉</div>';
     }
     document.getElementById('list').innerHTML=h;
+    var nb=document.getElementById('tabn');
+    if(nb){
+      var nNewAll=(p.received||[]).filter(function(m){return !m.read && !isDone(m);}).length;
+      nb.textContent=nNewAll; nb.style.display=nNewAll?'':'none';
+    }
     var tb=document.getElementById('done-toggle');
     if(API && doneCount){ tb.style.display=''; tb.textContent=showDone?'Skrýt vyřízené':('Zobrazit vyřízené ('+doneCount+')'); }
     else { tb.style.display='none'; }
   }
 
   function render(p){
-    PAYLOAD=p; API=p.api||null;
-    var h='';
-    if(p.digest){ h += '<div class="card digest">'+md(p.digest)+'</div>'; }
-    h += '<div class="toolbar"><button id="done-toggle" style="display:none"></button></div>';
-    h += '<div id="list"></div>';
-    h += '<div class="when-foot">žák: '+esc(p.student||'')+' · aktualizováno '+esc(p.ts||'')+'</div>';
+    PAYLOAD=p; API=p.api||null; TT=p.tt||null;
+
+    var m='';
+    if(p.digest){ m += '<div class="card digest">'+md(p.digest)+'</div>'; }
+    m += '<div class="toolbar"><button id="done-toggle" style="display:none"></button></div>';
+    m += '<div id="list"></div>';
+    m += '<div class="when-foot">žák: '+esc(p.student||'')+' · aktualizováno '+esc(p.ts||'')+'</div>';
+
+    var h='<section id="s-tt"></section><section id="s-msgs" hidden>'+m+'</section>';
     h += '<button class="lockbtn" onclick="lockNow()">Zamknout</button>';
     dataEl.innerHTML=h; dataEl.classList.add('on'); lock.style.display='none';
+
+    // Po 14:00 rodinu zajímá spíš zítřek — stejná logika jako v ranním briefingu.
+    if(!ttRange) ttRange=(new Date().getHours()<14)?'dnes':'zitra';
+    if(!ttKid && TT && (TT.kids||[]).length) ttKid=TT.kids[0].key;
+    paintTT();
+
+    var tabs=document.getElementById('tabs');
+    tabs.classList.add('on');
+    tabs.addEventListener('click', function(e){
+      var b=e.target.closest('button[data-tab]');
+      if(b) setTab(b.getAttribute('data-tab'));
+    });
+    document.getElementById('s-tt').addEventListener('click', function(e){
+      var r=e.target.closest('button[data-r]'), k=e.target.closest('button[data-k]');
+      if(r) setRange(r.getAttribute('data-r'));
+      else if(k){ ttKid=k.getAttribute('data-k'); paintTT(); }
+    });
+    var saved=null; try{ saved=sessionStorage.getItem('stab'); }catch(e){}
+    setTab(saved==='msgs'?'msgs':'tt');
+
     document.getElementById('done-toggle').addEventListener('click', function(){ showDone=!showDone; paintList(); });
     dataEl.addEventListener('change', function(e){
       var t=e.target;
@@ -293,6 +474,13 @@ def main():
     except FileNotFoundError:
         print("VAROVÁNÍ: chybí _data/digest.md – stránka bude bez AI shrnutí.", file=sys.stderr)
 
+    try:
+        with open("_data/timetable.json", encoding="utf-8") as f:
+            tt = json.load(f)
+    except FileNotFoundError:
+        tt = None
+        print("VAROVÁNÍ: chybí _data/timetable.json – stránka bude bez rozvrhů.", file=sys.stderr)
+
     payload = {
         "ts": data.get("ts"),
         "student": data.get("student"),
@@ -300,6 +488,7 @@ def main():
         "digest": digest,
         "received": data.get("received", []),
         "noticeboard": data.get("noticeboard", []),
+        "tt": tt,
     }
     # Konfigurace stavového backendu jde DOVNITŘ šifrovaného payloadu —
     # tajemství je tak dostupné až po odemčení rodinným heslem, nikdy v cleartextu.
@@ -310,8 +499,9 @@ def main():
 
     enc = encrypt(payload, password)
     build_page(enc, configured=True)
-    print(f"Hotovo: {len(payload['received'])} zpráv, digest {'ano' if digest else 'ne'}, zašifrováno.",
-          file=sys.stderr)
+    n_kids = len((tt or {}).get("kids") or [])
+    print(f"Hotovo: {len(payload['received'])} zpráv, digest {'ano' if digest else 'ne'}, "
+          f"rozvrhy {n_kids} dětí, zašifrováno.", file=sys.stderr)
 
 
 if __name__ == "__main__":

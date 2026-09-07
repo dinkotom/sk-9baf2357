@@ -41,6 +41,16 @@ jobs:
           STATE_API_SECRET: ${{ secrets.STATE_API_SECRET }}
         run: python fetch_messages.py
 
+      - name: Stáhnout rozvrhy kluků
+        env:
+          BAKALARI_BASE_URL: ${{ secrets.BAKALARI_BASE_URL }}
+          BAKALARI_USERNAME: ${{ secrets.BAKALARI_USERNAME }}
+          BAKALARI_PASSWORD: ${{ secrets.BAKALARI_PASSWORD }}
+          BAKALARI_OTA_BASE_URL: ${{ secrets.BAKALARI_OTA_BASE_URL }}
+          BAKALARI_OTA_USERNAME: ${{ secrets.BAKALARI_OTA_USERNAME }}
+          BAKALARI_OTA_PASSWORD: ${{ secrets.BAKALARI_OTA_PASSWORD }}
+        run: python fetch_timetable.py
+
       - name: Obnovit stav digestu (kvůli přeskočení Claude, když nic nového)
         uses: actions/cache@v4
         with:

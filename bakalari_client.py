@@ -68,3 +68,7 @@ class BakalariClient:
 
     def user_info(self) -> Any:
         return self._call("GET", "user")
+
+    def timetable_actual(self, date: str | None = None) -> Any:
+        q = f"?date={urllib.parse.quote(date)}" if date else ""
+        return self._call("GET", f"timetable/actual{q}")
