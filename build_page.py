@@ -140,6 +140,31 @@ PAGE = r"""<!DOCTYPE html>
   .tt tr.removed .note, .tt tr.removed .r{color:var(--red);}
   .tt tr.sub .s, .tt tr.sub .note{color:var(--gold);}
   .tt tr.added .s, .tt tr.added .note{color:var(--green);}
+  .tt .nav{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:10px 0 2px;}
+  .tt .nav button{background:none; border:1px solid var(--line); color:var(--muted);
+    border-radius:8px; padding:3px 12px; font:inherit; font-size:.8rem; cursor:pointer;}
+  .tt .nav button:hover{color:var(--green); border-color:var(--green);}
+  .tt .navlab{font-size:.74rem; letter-spacing:.1em; text-transform:uppercase; color:var(--gold);}
+  .tt tr.clubrow .subj{color:var(--green);}
+  .tt tbody.clubs tr:first-child td{border-top:2px solid var(--line);}
+
+  .tt .gridwrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -2px;}
+  .tt table.grid{min-width:500px; table-layout:fixed; font-size:.74rem;}
+  .tt table.grid th{padding:3px 4px; text-align:left; font-size:.66rem; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--gold);
+    border-bottom:1px solid var(--line);}
+  .tt table.grid th .thd{display:block; font-size:.6rem; color:var(--muted);
+    font-weight:400; letter-spacing:0; text-transform:none;}
+  .tt table.grid td{padding:4px; border-top:1px solid var(--line); vertical-align:top;}
+  .tt table.grid .tcol{width:4.4em; color:var(--muted); font-size:.62rem; white-space:nowrap;}
+  .tt table.grid .tcol b{color:var(--fg); font-weight:600;}
+  .tt .cell{font-weight:600; line-height:1.2; display:block;}
+  .tt .cellr{display:block; color:var(--muted); font-size:.6rem; font-weight:400; line-height:1.25;}
+  .tt .cell.removed{color:var(--red); text-decoration:line-through;}
+  .tt .cell.sub{color:var(--gold);}
+  .tt .cell.added{color:var(--green);}
+  .tt .cell.club{color:var(--green);}
+  .tt .today{background:rgba(255,255,255,.045);}
   .tt .empty{color:var(--muted); font-size:.85rem;}
   .tt .warn{color:var(--gold); font-size:.76rem;}
 
@@ -206,18 +231,22 @@ PAGE = r"""<!DOCTYPE html>
   }
 
   // ---------- rozvrh ----------
-  var TT=null, ttRange=null, ttKid=null;
+  var TT=null, ttView=null, ttDate=null, ttMon=null;
   var DOW=['ne','po','út','st','čt','pá','so'];
-  var RANGES={dnes:'Dnes', zitra:'Zítra', tyden:'Týden'};
 
   function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   function shift(d,n){ var x=new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
   function czLabel(d){ return DOW[d.getDay()]+' '+d.getDate()+'.'+(d.getMonth()+1)+'.'; }
+  function mondayOf(d){ return shift(d, -(((d.getDay()+6)%7))); }
+  function isoDow(d){ return d.getDay()===0 ? 7 : d.getDay(); }
+  function mins(t){ var p=String(t||'0:0').split(':'); return (+p[0])*60+(+p[1]); }
   function dayOf(kid, dt){ return (kid.days||[]).filter(function(d){return d.date===dt;})[0]||null; }
   function lastDay(kid){ var ds=kid.days||[]; return ds.length? ds[ds.length-1].date : null; }
+  function clubsOn(kid, dow){ return (kid.clubs||[]).filter(function(c){ return c.dow===dow; }); }
 
-  function lessonTable(day){
-    var rows=(day.lessons||[]).map(function(l){
+  // ---- pohled DEN: řádková tabulka pod sebou ----
+  function lessonRows(day){
+    return (day.lessons||[]).map(function(l){
       var subj = l.subject || l.abbrev || (l.change_kind==='removed' ? 'odpadá' : '—');
       var notes=[];
       if(l.change) notes.push(l.change);
@@ -229,42 +258,116 @@ PAGE = r"""<!DOCTYPE html>
         '<td class="s"><span class="subj">'+esc(subj)+'</span>'+
           (notes.length? '<div class="note">'+esc(notes.join(' · '))+'</div>' : '')+'</td>'+
         '<td class="r">'+esc(right)+'</td></tr>';
-    });
-    return rows.length ? '<table>'+rows.join('')+'</table>' : '';
+    }).join('');
   }
 
-  function dayBlock(kid, dt, withHead){
-    var day=dayOf(kid, dt), h='';
-    if(withHead){
-      var d=new Date(dt+'T00:00:00');
-      h += '<div class="dayhead">'+esc(day? day.label : czLabel(d))+
-           (day && day.desc ? ' · '+esc(day.desc) : '')+'</div>';
-    }
-    if(day){
-      var t=lessonTable(day);
-      h += t || '<div class="empty">volno 🎉</div>';
-    } else {
+  function clubRows(kid, dow){
+    return clubsOn(kid, dow).map(function(c){
+      var notes=[c.place, c.note].filter(Boolean).join(' · ');
+      return '<tr class="clubrow">'+
+        '<td class="h">🏃</td>'+
+        '<td class="t">'+esc(c.from||'')+'</td>'+
+        '<td class="s"><span class="subj">'+esc(c.name||'')+'</span>'+
+          (notes? '<div class="note">'+esc(notes)+'</div>' : '')+'</td>'+
+        '<td class="r">'+esc(c.to||'')+'</td></tr>';
+    }).join('');
+  }
+
+  function dayTable(kid, dt){
+    var day=dayOf(kid, dt), d=new Date(dt+'T00:00:00');
+    var rows = day ? lessonRows(day) : '';
+    var cr = clubRows(kid, isoDow(d));
+    if(!rows && !cr){
       var stale=lastDay(kid);
-      h += (stale && dt>stale)
+      return (stale && dt>stale)
         ? '<div class="warn">⚠ Tak daleko rozvrh ještě není načtený.</div>'
         : '<div class="empty">volno 🎉</div>';
     }
-    return h;
+    var head = (day && day.desc) ? '<div class="dayhead">'+esc(day.desc)+'</div>' : '';
+    return head+'<table><tbody>'+rows+cr+'</tbody></table>';
   }
 
-  function kidCard(kid, dates, withHeads, withCycle){
-    var meta=[esc(kid.school||''), esc(kid['class']||'')];
-    if(withCycle){
-      var first=dates.map(function(d){return dayOf(kid,d);}).filter(Boolean)[0];
-      if(first && first.cycle) meta.push(esc(first.cycle));
+  // ---- pohled TÝDEN: klasická mřížka po–pá ----
+  function cellHtml(l){
+    if(!l) return '';
+    var txt = l.abbrev || l.subject || (l.change_kind==='removed' ? 'odpadá' : '');
+    if(!txt) return '';
+    var sub   = [l.room, l.group].filter(Boolean).join(' ');
+    var title = [l.subject, l.teacher, l.room, l.change].filter(Boolean).join(' · ');
+    return '<span class="cell '+(l.change_kind||'')+'" title="'+esc(title)+'">'+esc(txt)+'</span>'+
+           (sub? '<span class="cellr">'+esc(sub)+'</span>' : '');
+  }
+
+  function slotKey(l){ return l.hour ? 'h:'+l.hour : 't:'+(l.from||''); }
+
+  function weekGrid(kid, dates){
+    var today=iso(new Date()), slots={}, cl=(kid.clubs||[]);
+
+    // Řádky mřížky = čísla hodin (klasický rozvrh), ne přesné časy — jinak by se
+    // blok začínající v jeden den 13:15 a v jiný 13:30 rozpadl na dva řádky.
+    dates.forEach(function(dt){
+      var day=dayOf(kid, dt); if(!day) return;
+      (day.lessons||[]).forEach(function(l){
+        if(!l.from && !l.hour) return;
+        var k=slotKey(l), sl=slots[k];
+        if(!sl) slots[k]={hour:l.hour||'', from:l.from||'', sort:mins(l.from)};
+        else if(mins(l.from) < sl.sort){ sl.sort=mins(l.from); sl.from=l.from||sl.from; }
+      });
+    });
+    var keys=Object.keys(slots).sort(function(a,b){ return slots[a].sort-slots[b].sort; });
+    if(!keys.length && !cl.length) return '<div class="empty">volno 🎉</div>';
+
+    function th(dt){
+      var d=new Date(dt+'T00:00:00');
+      return '<th'+(dt===today?' class="today"':'')+'>'+esc(DOW[d.getDay()])+
+             '<span class="thd">'+esc(d.getDate()+'.'+(d.getMonth()+1)+'.')+'</span></th>';
     }
+
+    var h='<div class="gridwrap"><table class="grid"><thead><tr><th class="tcol"></th>'+
+          dates.map(th).join('')+'</tr></thead><tbody>';
+
+    keys.forEach(function(k){
+      var sl=slots[k];
+      h+='<tr><td class="tcol">'+(sl.hour? '<b>'+esc(sl.hour)+'</b> ' : '')+esc(sl.from)+'</td>';
+      dates.forEach(function(dt){
+        var day=dayOf(kid, dt);
+        var ls = day ? (day.lessons||[]).filter(function(x){ return slotKey(x)===k; }) : [];
+        h+='<td'+(dt===today?' class="today"':'')+'>'+ls.map(cellHtml).join('')+'</td>';
+      });
+      h+='</tr>';
+    });
+    h+='</tbody>';
+
+    if(cl.length){
+      var times={};
+      cl.forEach(function(c){ times[c.from]=1; });
+      h+='<tbody class="clubs">';
+      Object.keys(times).sort(function(a,b){ return mins(a)-mins(b); }).forEach(function(t){
+        h+='<tr><td class="tcol">🏃 '+esc(t)+'</td>';
+        dates.forEach(function(dt){
+          var dw=isoDow(new Date(dt+'T00:00:00'));
+          var c=cl.filter(function(x){ return x.dow===dw && x.from===t; })[0];
+          h+='<td'+(dt===today?' class="today"':'')+'>'+
+             (c? '<span class="cell club" title="'+esc([c.name,c.place,c.note].filter(Boolean).join(' · '))+'">'+
+                 esc((c.name||'').split('–')[0].trim())+'</span>'+
+                 (c.place? '<span class="cellr">'+esc(c.place)+'</span>' : '') : '')+'</td>';
+        });
+        h+='</tr>';
+      });
+      h+='</tbody>';
+    }
+    return h+'</table></div>';
+  }
+
+  function kidCard(kid, body, extra){
+    var meta=[esc(kid.school||''), esc(kid['class']||''), esc(extra||'')].filter(Boolean).join('<br>');
     var h='<div class="card tt"><div class="khead"><span class="who">'+esc(kid.name)+'</span>'+
-          '<span class="kmeta">'+meta.filter(Boolean).join('<br>')+'</span></div>';
+          '<span class="kmeta">'+meta+'</span></div>';
     if(kid.error){
       h += '<div class="warn">⚠ '+esc(kid.error)+'</div>';
     } else {
       if(kid.fallback) h += '<div class="warn">⚠ '+esc(kid.fallback)+'</div>';
-      h += dates.map(function(dt){ return dayBlock(kid, dt, withHeads); }).join('');
+      h += body;
     }
     return h+'</div>';
   }
@@ -276,34 +379,36 @@ PAGE = r"""<!DOCTYPE html>
       el.innerHTML='<div class="card"><div class="empty">Rozvrhy se nepodařilo načíst.</div></div>';
       return;
     }
-    var today=new Date(), h='';
-    h += '<div class="pills" id="p-range">'+Object.keys(RANGES).map(function(r){
-           return '<button data-r="'+r+'"'+(ttRange===r?' class="sel"':'')+'>'+RANGES[r]+'</button>';
-         }).join('')+'</div>';
+    var h='<div class="pills" id="p-view">'+
+      [['den','Den'],['tyden','Týden']].map(function(v){
+        return '<button data-v="'+v[0]+'"'+(ttView===v[0]?' class="sel"':'')+'>'+v[1]+'</button>';
+      }).join('')+'</div>';
 
-    if(ttRange==='tyden'){
-      h += '<div class="pills">'+TT.kids.map(function(k){
-             return '<button data-k="'+esc(k.key)+'"'+(ttKid===k.key?' class="sel"':'')+'>'+esc(k.name)+'</button>';
-           }).join('')+'</div>';
-      // v so/ne ukazuj rovnou příští týden
-      var dow=today.getDay();
-      var base=(dow===0)? shift(today,1) : (dow===6? shift(today,2) : today);
-      var monday=shift(base, -(((base.getDay()+6)%7)));
-      var dates=[0,1,2,3,4].map(function(i){ return iso(shift(monday,i)); });
-      var kid=TT.kids.filter(function(k){return k.key===ttKid;})[0]||TT.kids[0];
-      h += '<div class="sect">'+esc(czLabel(monday)+' – '+czLabel(shift(monday,4)))+'</div>';
-      h += kidCard(kid, dates, true, true);
+    if(ttView==='tyden'){
+      var mon=new Date(ttMon+'T00:00:00');
+      var dates=[0,1,2,3,4].map(function(i){ return iso(shift(mon,i)); });
+      h+='<div class="nav"><button data-step="-7" aria-label="předchozí týden">◀</button>'+
+         '<span class="navlab">'+esc(czLabel(mon)+' – '+czLabel(shift(mon,4)))+'</span>'+
+         '<button data-step="7" aria-label="další týden">▶</button></div>';
+      h+=TT.kids.map(function(k){
+           var first=dates.map(function(d){ return dayOf(k,d); }).filter(Boolean)[0];
+           return kidCard(k, weekGrid(k,dates), first && first.cycle);
+         }).join('');
     } else {
-      var tgt=(ttRange==='zitra')? shift(today,1) : today;
-      var dt=iso(tgt), wknd=(tgt.getDay()===0||tgt.getDay()===6);
-      h += '<div class="sect">'+esc(czLabel(tgt))+(wknd?' · víkend':'')+'</div>';
-      h += TT.kids.map(function(k){ return kidCard(k, [dt], false, true); }).join('');
+      var d=new Date(ttDate+'T00:00:00'), wknd=(d.getDay()===0||d.getDay()===6);
+      h+='<div class="nav"><button data-step="-1" aria-label="předchozí den">◀</button>'+
+         '<span class="navlab">'+esc(czLabel(d))+(wknd?' · víkend':'')+'</span>'+
+         '<button data-step="1" aria-label="další den">▶</button></div>';
+      h+=TT.kids.map(function(k){
+           var day=dayOf(k, ttDate);
+           return kidCard(k, dayTable(k, ttDate), day && day.cycle);
+         }).join('');
     }
     h += '<div class="when-foot">aktualizováno '+esc((TT.ts)||'')+' · živě z Bakalářů (Ota, Eda)</div>';
     el.innerHTML=h;
   }
 
-  function setRange(r){ ttRange=r; paintTT(); }
+  function setView(v){ ttView=v; paintTT(); }
 
   function setTab(t){
     var bs=document.querySelectorAll('#tabs button');
@@ -371,8 +476,9 @@ PAGE = r"""<!DOCTYPE html>
     dataEl.innerHTML=h; dataEl.classList.add('on'); lock.style.display='none';
 
     // Po 14:00 rodinu zajímá spíš zítřek — stejná logika jako v ranním briefingu.
-    if(!ttRange) ttRange=(new Date().getHours()<14)?'dnes':'zitra';
-    if(!ttKid && TT && (TT.kids||[]).length) ttKid=TT.kids[0].key;
+    if(!ttView) ttView='den';
+    if(!ttDate){ var _n=new Date(); ttDate=iso(_n.getHours()<14 ? _n : shift(_n,1)); }
+    if(!ttMon) ttMon=iso(mondayOf(new Date(ttDate+'T00:00:00')));
     paintTT();
 
     var tabs=document.getElementById('tabs');
@@ -382,9 +488,17 @@ PAGE = r"""<!DOCTYPE html>
       if(b) setTab(b.getAttribute('data-tab'));
     });
     document.getElementById('s-tt').addEventListener('click', function(e){
-      var r=e.target.closest('button[data-r]'), k=e.target.closest('button[data-k]');
-      if(r) setRange(r.getAttribute('data-r'));
-      else if(k){ ttKid=k.getAttribute('data-k'); paintTT(); }
+      var v=e.target.closest('button[data-v]'), st=e.target.closest('button[data-step]');
+      if(v){ setView(v.getAttribute('data-v')); return; }
+      if(st){
+        var n=parseInt(st.getAttribute('data-step'),10);
+        if(ttView==='tyden') ttMon=iso(shift(new Date(ttMon+'T00:00:00'), n));
+        else {
+          ttDate=iso(shift(new Date(ttDate+'T00:00:00'), n));
+          ttMon=iso(mondayOf(new Date(ttDate+'T00:00:00')));
+        }
+        paintTT();
+      }
     });
     var saved=null; try{ saved=sessionStorage.getItem('stab'); }catch(e){}
     setTab(saved==='msgs'?'msgs':'tt');

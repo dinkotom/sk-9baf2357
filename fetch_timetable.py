@@ -25,6 +25,7 @@ from datetime import date, datetime, timedelta
 from bakalari_client import BakalariClient, BakalariError
 
 OUT = "_data/timetable.json"
+CLUBS = "data/krouzky.json"
 
 # Pořadí zobrazení = od nejstaršího kluka, stejně jako v ranním briefingu.
 KIDS = [
@@ -319,7 +320,19 @@ def load_snapshot(kid: dict, reason: str) -> dict:
             "fallback": note + ". Bez suplování a odpadlých hodin."}
 
 
+def load_clubs() -> dict:
+    """Kroužky z data/krouzky.json (ruční evidence, mění se po sezónách)."""
+    try:
+        with open(CLUBS, encoding="utf-8") as f:
+            raw = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"VAROVÁNÍ: kroužky se nenačetly ({e})", file=sys.stderr)
+        return {}
+    return {k: v for k, v in raw.items() if isinstance(v, list)}
+
+
 def main():
+    clubs = load_clubs()
     kids = []
     for kid in KIDS:
         entry = {"key": kid["key"], "name": kid["name"], "school": kid["school"],
@@ -341,6 +354,7 @@ def main():
         else:
             n = sum(len(d["lessons"]) for d in entry["days"])
             print(f"{kid['name']}: {len(entry['days'])} dnů, {n} hodin", file=sys.stderr)
+        entry["clubs"] = clubs.get(kid["key"], [])
         kids.append(entry)
 
     data = {
