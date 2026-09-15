@@ -263,6 +263,7 @@ PAGE = r"""<!DOCTYPE html>
     if(kid.error){
       h += '<div class="warn">⚠ '+esc(kid.error)+'</div>';
     } else {
+      if(kid.fallback) h += '<div class="warn">⚠ '+esc(kid.fallback)+'</div>';
       h += dates.map(function(dt){ return dayBlock(kid, dt, withHeads); }).join('');
     }
     return h+'</div>';

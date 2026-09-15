@@ -28,9 +28,11 @@ OUT = "_data/timetable.json"
 
 # Pořadí zobrazení = od nejstaršího kluka, stejně jako v ranním briefingu.
 KIDS = [
-    {"key": "ota", "name": "Ota", "school": "Gymnázium Hladnov", "env": "BAKALARI_OTA"},
+    {"key": "ota", "name": "Ota", "school": "Gymnázium Hladnov", "env": "BAKALARI_OTA",
+     "snapshot": "data/ota_zaloha.json"},
     {"key": "cenek", "name": "Čeněk", "school": "ScioŠkola FM", "static": "data/cenek.json"},
-    {"key": "eda", "name": "Eda", "school": "ZŠ Petra Bezruče", "env": "BAKALARI"},
+    {"key": "eda", "name": "Eda", "school": "ZŠ Petra Bezruče", "env": "BAKALARI",
+     "snapshot": "data/eda_zaloha.json"},
 ]
 
 DOW_ABBR = {1: "po", 2: "út", 3: "st", 4: "čt", 5: "pá", 6: "so", 7: "ne"}
@@ -200,6 +202,123 @@ def load_static(kid: dict) -> dict:
     return {"days": days, "class": cfg.get("class", ""), "note": cfg.get("note", "")}
 
 
+def _slot_key(l):
+    return (l.get("from") or "", l.get("subject") or "")
+
+
+def save_snapshot(kid: dict, got: dict) -> None:
+    """Udržuje zálohu rozvrhu z posledních úspěšných stažení.
+
+    Ukládají se jen STABILNÍ hodiny (bez suplování / přesunu) — jednorázové
+    změny nejsou rozvrh. Protože týden plný suplování by dal děravou zálohu,
+    data se KUMULUJÍ: slot, který se tentokrát nestáhl čistě, si podrží dřívější
+    hodnotu. Drží se zvlášť pro každý cyklus (sudý/lichý týden).
+    """
+    path = kid.get("snapshot")
+    if not path:
+        return
+
+    try:
+        with open(path, encoding="utf-8") as f:
+            snap = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        snap = {}
+    by_cycle = snap.get("by_cycle") or {}
+
+    for d in got.get("days") or []:
+        cycle = d.get("cycle") or "-"
+        stable = [
+            {k: l.get(k, "") for k in ("hour", "from", "to", "subject", "abbrev", "teacher", "room")}
+            for l in d["lessons"] if not l.get("change_kind") and l.get("subject")
+        ]
+        if not stable:
+            continue
+        bucket = by_cycle.setdefault(cycle, {"week": {}, "captured": {}})
+        dow = str(d["dow"])
+        merged = {_slot_key(l): l for l in bucket["week"].get(dow, [])}
+        merged.update({_slot_key(l): l for l in stable})
+        bucket["week"][dow] = sorted(
+            merged.values(),
+            key=lambda l: [int(x) for x in (l["from"] or "0:0").split(":")],
+        )
+        bucket["captured"][dow] = d["date"]
+
+    if not by_cycle:
+        return
+    payload = {
+        "_generated": "Automatická záloha z úspěšných stažení Bakalářů. Needituj ručně.",
+        "class": got.get("class", "") or snap.get("class", ""),
+        "by_cycle": by_cycle,
+    }
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
+
+
+def load_snapshot(kid: dict, reason: str) -> dict:
+    """Bakaláři nejedou → vykreslí zálohu místo hlášky o chybě.
+
+    Který cyklus zrovna běží, offline nevíme; odvodí se z parity týdnů od
+    posledního zachycení daného cyklu (cykly se střídají po týdnu).
+    """
+    path = kid.get("snapshot")
+    if not path or not os.path.exists(path):
+        return {"error": reason}
+    try:
+        with open(path, encoding="utf-8") as f:
+            snap = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"error": reason}
+
+    by_cycle = snap.get("by_cycle") or {}
+    if not by_cycle:
+        return {"error": reason}
+
+    today = date.today()
+    monday = today - timedelta(days=today.isoweekday() - 1)
+
+    def last_seen(bucket):
+        got = [v for v in (bucket.get("captured") or {}).values() if v]
+        return max(got) if got else ""
+
+    # Cyklus s nejnovějším záznamem je referenční; ostatní se dopočítají paritou.
+    ref_name, ref_bucket = max(by_cycle.items(), key=lambda kv: last_seen(kv[1]))
+    ref_date = last_seen(ref_bucket)
+    pick_name, pick_bucket = ref_name, ref_bucket
+    if ref_date and len(by_cycle) == 2:
+        ref_monday = date.fromisoformat(ref_date)
+        ref_monday -= timedelta(days=ref_monday.isoweekday() - 1)
+        if ((monday - ref_monday).days // 7) % 2:
+            other = [kv for kv in by_cycle.items() if kv[0] != ref_name]
+            if other:
+                pick_name, pick_bucket = other[0]
+
+    days = []
+    for i in range(14):
+        d = monday + timedelta(days=i)
+        if d.isoweekday() > 5:
+            continue
+        lessons = [{
+            "hour": str(l.get("hour", "") or ""), "from": l.get("from", ""), "to": l.get("to", ""),
+            "subject": l.get("subject", ""), "abbrev": l.get("abbrev", "") or l.get("subject", "")[:6],
+            "teacher": l.get("teacher", ""), "room": l.get("room", ""), "group": "",
+            "theme": "", "change": "", "change_kind": None,
+        } for l in (pick_bucket.get("week") or {}).get(str(d.isoweekday())) or []]
+        days.append({
+            "date": d.isoformat(), "label": day_label(d), "dow": d.isoweekday(),
+            "cycle": "", "desc": "", "type": "WorkDay", "lessons": lessons,
+        })
+
+    note = f"Bakaláři nedostupní ({reason}) – záloha"
+    if pick_name and pick_name != "-":
+        note += f" ({pick_name})"
+    if ref_date:
+        note += f" z {ref_date}"
+    return {"days": days, "class": snap.get("class", ""),
+            "fallback": note + ". Bez suplování a odpadlých hodin."}
+
+
 def main():
     kids = []
     for kid in KIDS:
@@ -209,6 +328,13 @@ def main():
             got = load_static(kid) if kid.get("static") else fetch_bakalari(kid)
         except BakalariError as e:
             got = {"error": str(e)}
+        if kid.get("snapshot"):
+            if got.get("error"):
+                got = load_snapshot(kid, got["error"])
+            else:
+                save_snapshot(kid, got)
+        if got.get("fallback"):
+            entry["source"] = "snapshot"
         entry.update(got)
         if entry.get("error"):
             print(f"VAROVÁNÍ [{kid['name']}]: {entry['error']}", file=sys.stderr)
