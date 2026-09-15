@@ -1,18 +1,60 @@
 {
-  "_navod": "Kroužky kluků. Klíč = key dítěte z fetch_timetable.KIDS. dow: 1=po … 5=pá. Udržuje se ručně, mění se po sezónách.",
+  "_navod": "Kroužky kluků. Klíč = key dítěte z fetch_timetable.KIDS. dow: 1=po … 5=pá. Udržuje se ručně, mění se po sezónách. \"neovereno\": true = čas pochází z webu klubu, ne od trenéra — appka to u kroužku vypíše. Až se potvrdí, příznak smaž.",
   "_zdroje": {
-    "cenek": "skola_cenek_scioskola/dokumenty/2026-09_florbal_starsi_zaci_fbcfm_sezona_2026-27.md",
-    "eda": "skola_eda_bezrucova/dokumenty/2026-08_florbal_pripravka_sezona_2026-27.md"
+    "cenek": "skola_cenek_scioskola/dokumenty/2026-09_florbal_starsi_zaci_fbcfm_sezona_2026-27.md — rozpis z webu fbcfm.cz (6. 9. 2026), NEOVĚŘENO u trenéra; 15. 9. 2026 se na kondiční nikdo nedostavil",
+    "eda": "skola_eda_bezrucova/dokumenty/2026-08_florbal_pripravka_sezona_2026-27.md — přímá zpráva od trenérů (31. 8. 2026), potvrzeno"
   },
   "ota": [],
   "cenek": [
-    {"dow": 1, "from": "16:30", "to": "18:00", "name": "Florbal – trénink", "place": "2. ZŠ J. Čapka"},
-    {"dow": 2, "from": "18:00", "to": "19:00", "name": "Florbal – kondiční", "place": "Gymnázium Cihelní"},
-    {"dow": 3, "from": "18:00", "to": "19:30", "name": "Florbal – trénink", "place": "hala Žabeň"},
-    {"dow": 5, "from": "16:30", "to": "17:30", "name": "Florbal – trénink", "place": "2. ZŠ J. Čapka"}
+    {
+      "dow": 1,
+      "from": "16:30",
+      "to": "18:00",
+      "name": "Florbal – trénink",
+      "place": "2. ZŠ J. Čapka",
+      "neovereno": true
+    },
+    {
+      "dow": 2,
+      "from": "18:00",
+      "to": "19:00",
+      "name": "Florbal – kondiční",
+      "place": "Gymnázium Cihelní",
+      "neovereno": true
+    },
+    {
+      "dow": 3,
+      "from": "18:00",
+      "to": "19:30",
+      "name": "Florbal – trénink",
+      "place": "hala Žabeň",
+      "neovereno": true
+    },
+    {
+      "dow": 5,
+      "from": "16:30",
+      "to": "17:30",
+      "name": "Florbal – trénink",
+      "place": "2. ZŠ J. Čapka",
+      "neovereno": true
+    }
   ],
   "eda": [
-    {"dow": 2, "from": "16:00", "to": "17:30", "name": "Florbal – přípravka", "place": "hala Cihelní", "note": "odchod z družiny ~15:00, vchod pod jídelnou"},
-    {"dow": 4, "from": "16:00", "to": "17:30", "name": "Florbal – přípravka", "place": "hala Cihelní", "note": "odchod z družiny ~15:00, vchod pod jídelnou"}
+    {
+      "dow": 2,
+      "from": "16:00",
+      "to": "17:30",
+      "name": "Florbal – přípravka",
+      "place": "hala Cihelní",
+      "note": "odchod z družiny ~15:00, vchod pod jídelnou"
+    },
+    {
+      "dow": 4,
+      "from": "16:00",
+      "to": "17:30",
+      "name": "Florbal – přípravka",
+      "place": "hala Cihelní",
+      "note": "odchod z družiny ~15:00, vchod pod jídelnou"
+    }
   ]
 }

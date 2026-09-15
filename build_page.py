@@ -118,6 +118,8 @@ PAGE = r"""<!DOCTYPE html>
   .ttnav .today-btn{width:auto; padding:0 12px; font-size:.7rem; color:var(--green);
     border-color:rgba(76,201,154,.4);}
   .tt tr.clubrow .subj{color:var(--green);}
+  .tt tr.clubrow.unverified .subj, .tt .cell.club.unverified{color:var(--gold);}
+  .tt .q{font-size:.8em; opacity:.8;}
   .tt tbody.clubs tr:first-child td{border-top:2px solid var(--line);}
 
   .tt .gridwrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -2px;}
@@ -228,11 +230,13 @@ PAGE = r"""<!DOCTYPE html>
 
   function clubRows(kid, dow){
     return clubsOn(kid, dow).map(function(c){
-      var notes=[c.place, c.note].filter(Boolean).join(' · ');
-      return '<tr class="clubrow">'+
+      var notes=[c.place, c.note].filter(Boolean);
+      if(c.neovereno) notes.push('⚠ čas z webu klubu, neověřeno u trenéra');
+      notes=notes.join(' · ');
+      return '<tr class="clubrow'+(c.neovereno?' unverified':'')+'">'+
         '<td class="h">🏃</td>'+
         '<td class="t">'+esc(c.from||'')+'</td>'+
-        '<td class="s"><span class="subj">'+esc(c.name||'')+'</span>'+
+        '<td class="s"><span class="subj">'+esc(c.name||'')+(c.neovereno?' <span class="q">?</span>':'')+'</span>'+
           (notes? '<div class="note">'+esc(notes)+'</div>' : '')+'</td>'+
         '<td class="r">'+esc(c.to||'')+'</td></tr>';
     }).join('');
@@ -313,8 +317,9 @@ PAGE = r"""<!DOCTYPE html>
           var dw=isoDow(new Date(dt+'T00:00:00'));
           var c=cl.filter(function(x){ return x.dow===dw && x.from===t; })[0];
           h+='<td'+(dt===today?' class="today"':'')+'>'+
-             (c? '<span class="cell club" title="'+esc([c.name,c.place,c.note].filter(Boolean).join(' · '))+'">'+
-                 esc((c.name||'').split('–')[0].trim())+'</span>'+
+             (c? '<span class="cell club'+(c.neovereno?' unverified':'')+'" title="'+
+                 esc([c.name,c.place,c.note,c.neovereno?'neověřeno u trenéra':''].filter(Boolean).join(' · '))+'">'+
+                 esc((c.name||'').split('–')[0].trim())+(c.neovereno?' ?':'')+'</span>'+
                  (c.place? '<span class="cellr">'+esc(c.place)+'</span>' : '') : '')+'</td>';
         });
         h+='</tr>';
