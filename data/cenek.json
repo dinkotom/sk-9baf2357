@@ -1,14 +1,36 @@
 {
   "name": "Čeněk",
   "school": "ScioŠkola FM",
-  "class": "8. ročník",
-  "note": "ScioŠkola jede na Edookitu, který nemá rodičovské API – tenhle rozvrh se udržuje ručně. Zdroj: Edookit → Rozvrh.",
+  "class": "8. ročník (Ostrý B)",
+  "note": "ScioŠkola jede na Edookitu, který nemá rodičovské API – tenhle rozvrh se udržuje ručně. Zdroj: rozvrh skupiny „Ostrý B“ od školy, zapsáno 15. 9. 2026.",
   "_navod": "week: klíč = den v týdnu (1=po … 5=pá), hodnota = seznam bloků. Každý blok: hour (číslo/název), from, to, subject, volitelně abbrev, teacher, room, note.",
   "week": {
-    "1": [],
-    "2": [],
-    "3": [],
-    "4": [],
-    "5": []
+    "1": [
+      {"hour": "2", "from": "8:30",  "to": "10:00", "subject": "Matematika",      "abbrev": "M",    "teacher": "HA"},
+      {"hour": "3", "from": "10:25", "to": "11:55", "subject": "Angličtina",      "abbrev": "AJ",   "teacher": "MI"},
+      {"hour": "4", "from": "12:00", "to": "12:45", "subject": "Němčina / Španělština", "abbrev": "NJZ/ŠJ", "teacher": "DA, MK"},
+      {"hour": "5", "from": "13:30", "to": "14:15", "subject": "Studovna",        "abbrev": "Stud", "teacher": "FI"}
+    ],
+    "2": [
+      {"hour": "2", "from": "8:30",  "to": "10:00", "subject": "Matematika",      "abbrev": "M",    "teacher": "HA"},
+      {"hour": "3", "from": "10:25", "to": "11:55", "subject": "Světozor",        "abbrev": "Svět", "teacher": "GI, FI, MA"},
+      {"hour": "5", "from": "13:15", "to": "14:00", "subject": "Němčina / Španělština", "abbrev": "NJ/ŠJ", "teacher": "DA, MK"},
+      {"hour": "6", "from": "14:00", "to": "15:30", "subject": "Tělocvik",        "abbrev": "TV",   "teacher": "ŠA, DV", "note": "úbor + obuv do tělocvičny"}
+    ],
+    "3": [
+      {"hour": "2", "from": "8:30",  "to": "10:00", "subject": "Komunikace",      "abbrev": "Komu", "teacher": "ŠA"},
+      {"hour": "3", "from": "10:25", "to": "11:10", "subject": "Třídnická hodina", "abbrev": "TH",  "teacher": "HA"},
+      {"hour": "3", "from": "11:10", "to": "11:55", "subject": "Studovna",        "abbrev": "Stud", "teacher": "HA"},
+      {"hour": "5", "from": "13:15", "to": "14:45", "subject": "Informatika",     "abbrev": "IT",   "teacher": "DV"}
+    ],
+    "4": [
+      {"hour": "2-4", "from": "8:30", "to": "12:45", "subject": "Měsíční téma",   "abbrev": "MT",   "teacher": "MA, SI, KA, ŠA, GI, FI, DV, LU", "note": "celodenní projektový blok – pomůcky dle aktuálního tématu"}
+    ],
+    "5": [
+      {"hour": "1", "from": "7:40",  "to": "8:25",  "subject": "Studovna",        "abbrev": "Stud", "teacher": "SI"},
+      {"hour": "2", "from": "8:30",  "to": "10:00", "subject": "Angličtina",      "abbrev": "AJ",   "teacher": "MI"},
+      {"hour": "3", "from": "10:25", "to": "11:55", "subject": "Příprava na přijímačky", "abbrev": "Přij", "teacher": "FI / MK"},
+      {"hour": "4", "from": "12:00", "to": "12:45", "subject": "Komunikace",      "abbrev": "Komu", "teacher": "ŠA"}
+    ]
   }
 }
