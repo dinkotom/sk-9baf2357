@@ -1,42 +1,18 @@
 /**
- * Škola — stav „vyřízených" zpráv (Cloudflare Worker + KV).
+ * Cron dispatcher (Cloudflare Worker).
  *
- * Drží jeden klíč v KV: seznam ID odškrtnutých (vyřízených) zpráv.
- * Chráněno sdíleným tajemstvím (Authorization: Bearer <API_SECRET>), které
- * stránka zná až po odemčení rodinným heslem (je v šifrovaném payloadu).
+ * Budí GitHub Actions buildy přes workflow_dispatch — spolehlivá náhrada za
+ * nespolehlivý GitHub cron. Obsluhuje dva repa: Školu a IDOS spoje.
  *
- * Endpointy:
- *   GET  /state           -> { dismissed: ["id1","id2",...] }
- *   POST /dismiss  {id, dismissed:true|false} -> { dismissed: [...] }
+ * Historicky tenhle worker držel i stav „vyřízených" zpráv v KV; zprávy byly
+ * z appky Škola odstraněny 15. 9. 2026, takže HTTP endpointy /state a /dismiss
+ * zmizely. KV namespace zůstal v Cloudflare — smaž ho ručně, až bude jisté,
+ * že ho nic nepotřebuje.
  *
  * Konfigurace (wrangler.toml + secret):
- *   KV binding: KV
- *   secret:     API_SECRET
- *   var:        ALLOW_ORIGIN (např. https://dinkotom.github.io)
+ *   secret: GH_TOKEN
+ *   vars:   GH_REPO, GH_WORKFLOW, IDOS_REPO
  */
-
-const KEY = "skola:dismissed";
-
-function cors(env) {
-  return {
-    "Access-Control-Allow-Origin": env.ALLOW_ORIGIN || "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Authorization,Content-Type",
-    "Access-Control-Max-Age": "86400",
-  };
-}
-
-function json(obj, env, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "Content-Type": "application/json", ...cors(env) },
-  });
-}
-
-async function readSet(env) {
-  const v = await env.KV.get(KEY);
-  return new Set(v ? JSON.parse(v) : []);
-}
 
 // Spustí GitHub build přes workflow_dispatch (spolehlivé, na rozdíl od GH cronu).
 async function dispatchBuild(env, repo, wf) {
@@ -58,39 +34,6 @@ async function dispatchBuild(env, repo, wf) {
 }
 
 export default {
-  async fetch(req, env) {
-    if (req.method === "OPTIONS") return new Response(null, { headers: cors(env) });
-
-    if (req.headers.get("Authorization") !== "Bearer " + env.API_SECRET) {
-      return json({ error: "unauthorized" }, env, 401);
-    }
-
-    const url = new URL(req.url);
-
-    if (req.method === "GET" && url.pathname === "/state") {
-      return json({ dismissed: [...(await readSet(env))] }, env);
-    }
-
-    if (req.method === "POST" && url.pathname === "/dismiss") {
-      let body;
-      try {
-        body = await req.json();
-      } catch {
-        return json({ error: "bad json" }, env, 400);
-      }
-      if (body.id === undefined || body.id === null) {
-        return json({ error: "missing id" }, env, 400);
-      }
-      const set = await readSet(env);
-      if (body.dismissed) set.add(String(body.id));
-      else set.delete(String(body.id));
-      await env.KV.put(KEY, JSON.stringify([...set]));
-      return json({ dismissed: [...set] }, env);
-    }
-
-    return json({ error: "not found" }, env, 404);
-  },
-
   // Cloudflare Cron Triggers — spolehlivá náhrada za nespolehlivý GitHub cron.
   //   "*/15 * * * *"        -> IDOS spoje (každých 15 min)
   //   "0 4,5,15,16 * * *"   -> Škola (dispatch jen v 6:00 / 17:00 Praha, DST-safe)

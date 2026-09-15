@@ -2,9 +2,9 @@ name = "skola-state"
 main = "worker.js"
 compatibility_date = "2024-09-01"
 
-# ALLOW_ORIGIN omezuje CORS jen na naši stránku
+# Jméno workeru zůstává „skola-state" z historických důvodů — přejmenování by
+# založilo nový worker a osiřely by cron triggery. Dnes worker jen budí buildy.
 [vars]
-ALLOW_ORIGIN = "https://dinkotom.github.io"
 GH_REPO = "dinkotom/sk-9baf2357"
 GH_WORKFLOW = "build.yml"
 IDOS_REPO = "dinkotom/jr-45d291ec"
@@ -14,8 +14,3 @@ IDOS_REPO = "dinkotom/jr-45d291ec"
 #   */15 * * * *       -> IDOS spoje (každých 15 min)
 [triggers]
 crons = ["0 4,5,15,16 * * *", "*/15 * * * *"]
-
-# KV namespace — id doplň podle výstupu `wrangler kv namespace create STATE`
-[[kv_namespaces]]
-binding = "KV"
-id = "87395cbadd1d4b3b9abaa4a5840daf93"

@@ -1,11 +1,10 @@
-# Škola — rozvrhy kluků + šifrovaný digest školních zpráv
+# Škola — šifrované rozvrhy kluků
 
-Statická stránka pro GitHub Pages se dvěma záložkami:
-
-- **Rozvrh** — rozvrhy všech tří kluků (Ota, Čeněk, Eda) v pohledech
-  *Dnes / Zítra / Týden*. U Oty a Edy jde o **živý** rozvrh z Bakalářů, tedy
-  včetně suplování, odpadlých hodin a změn učeben (barevně odlišené).
-- **Zprávy** — přijaté zprávy a nástěnka z Bakalářů (Eda) + AI digest.
+Statická stránka pro GitHub Pages: rozvrhy všech tří kluků (Ota, Čeněk, Eda)
+pod sebou, ve dvou pohledech — **Den** a **Týden** (klasická mřížka po–pá).
+U Oty a Edy jde o **živý** rozvrh z Bakalářů, tedy včetně suplování, odpadlých
+hodin a změn učeben (barevně odlišené); Čeněk je statický, ScioŠkola jede na
+Edookitu bez rodičovského API. Součástí jsou i kroužky.
 
 Staví se **dvakrát denně** (6:00 a 17:00 Praha), vše se **zašifruje** a až pak
 publikuje. Obsah se dešifruje v prohlížeči po zadání rodinného hesla — na Pages
@@ -17,15 +16,10 @@ Součást rodinného rozcestníku [„Doma"](https://dinkotom.github.io/domov-60
 
 ```
 GitHub Actions (cron 04:00 a 15:00 UTC)
-  fetch_messages.py   → _data/items.json      (Komens zprávy + nástěnka, Eda)
   fetch_timetable.py  → _data/timetable.json  (rozvrhy: Ota + Eda živě, Čeněk staticky)
-  claude -p           → _data/digest.md       (AI shrnutí, přes předplatné)
   build_page.py       → public/index.html     (AES-GCM, klíč z hesla přes PBKDF2)
   deploy-pages
 ```
-
-AI digest běží přes **Claude Code s OAuth tokenem** (`claude setup-token`),
-takže se účtuje z předplatného, ne z placeného API.
 
 ## GitHub Secrets
 
@@ -37,17 +31,20 @@ takže se účtuje z předplatného, ne z placeného API.
 | `BAKALARI_OTA_BASE_URL` | Ota — `https://bakalar.hladnov.cz` (**bez** `/bakaweb`!) |
 | `BAKALARI_OTA_USERNAME` | Ota — přihlašovací jméno |
 | `BAKALARI_OTA_PASSWORD` | Ota — heslo |
-| `CLAUDE_CODE_OAUTH_TOKEN` | z `claude setup-token` (sk-ant-oat01-…) |
 | `APP_PASSWORD` | rodinné heslo pro odemčení stránky (stejné jako Účty) |
-| `STATE_API_URL` | URL Cloudflare Workeru (odškrtávání), volitelné |
-| `STATE_API_SECRET` | sdílené tajemství k Workeru, volitelné |
 
-## Odškrtávání vyřízených zpráv
+## Kroužky
 
-Volitelná funkce: u každé zprávy je zaškrtávátko „vyřízeno". Odškrtnuté zprávy
-se skryjí (synchronizovaně na všech zařízeních) a AI digest je přestane
-zmiňovat. Stav drží malý **Cloudflare Worker + KV** — viz [worker/README.md](worker/README.md).
-Bez nastavených `STATE_API_*` secrets se stránka chová jako dřív (bez zaškrtávátek).
+Ruční evidence v `data/krouzky.json` (klíč = dítě, `dow` 1=po … 5=pá). Zobrazují
+se jako oddělený pruh pod výukou v obou pohledech. Po sezóně je potřeba je
+aktualizovat — zdrojové dokumenty jsou odkázané přímo v souboru.
+
+## Záloha rozvrhů
+
+Když Bakaláři nejedou, Ota a Eda se vykreslí ze zálohy `data/<kluk>_zaloha.json`
+místo hlášky o chybě (s varovným bannerem). Do zálohy jdou jen hodiny **bez**
+suplování a kumulují se po cyklech (sudý/lichý týden), takže jeden týden plný
+změn neudělá děravý rozvrh. CI zálohu po každém úspěšném běhu commitne zpátky.
 
 ## Rozvrhy
 
@@ -85,13 +82,12 @@ export BAKALARI_BASE_URL=... BAKALARI_USERNAME=... BAKALARI_PASSWORD=...
 python fetch_messages.py
 export BAKALARI_OTA_BASE_URL=... BAKALARI_OTA_USERNAME=... BAKALARI_OTA_PASSWORD=...
 python fetch_timetable.py
-cat _data/items.json | claude -p "$(cat prompt.md)" > _data/digest.md   # volitelné
 APP_PASSWORD=heslo python build_page.py
 open public/index.html
 ```
 
 ## Bezpečnost
 
-- Čistý text zpráv ani heslo se nikdy necommitují (viz `.gitignore`).
+- Rozvrhová data ani heslo se nikdy necommitují v čitelné podobě (viz `.gitignore`).
 - Payload je šifrovaný AES-GCM, klíč odvozen z hesla (PBKDF2-SHA256, 200k iterací).
 - `noindex, nofollow`; repo je sice veřejné, ale obsah bez hesla nečitelný.

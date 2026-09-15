@@ -1,37 +1,33 @@
-# Backend pro „vyřízené" zprávy (Cloudflare Worker)
+# Cron dispatcher (Cloudflare Worker)
 
-Drobná služba (free tier), která ukládá seznam ID odškrtnutých zpráv do KV,
-takže se stav synchronizuje mezi všemi zařízeními a build ho umí přečíst.
+Drobná služba na free tieru, která budí GitHub Actions buildy přes
+`workflow_dispatch`. Nahrazuje nespolehlivý GitHub cron (zpoždění i 2,5 h,
+občas výpadky). Obsluhuje **dvě** repa:
 
-## Nasazení (jednorázově)
+| Cron (UTC) | Co |
+|---|---|
+| `0 4,5,15,16 * * *` | **Škola** — worker dispatchne jen když je v Praze 6:00 nebo 17:00 (DST-safe) |
+| `*/15 * * * *` | **IDOS spoje** (`dinkotom/jr-45d291ec`) — každých 15 min |
 
-Předpoklad: účet na Cloudflare (zdarma) a Node.js.
+> ⚠️ Worker se jmenuje `skola-state` z historických důvodů — dřív držel i stav
+> „vyřízených" zpráv. Zprávy byly z appky odstraněny 15. 9. 2026 a HTTP
+> endpointy `/state` a `/dismiss` s nimi. **Nepřejmenovávej ho** — vznikl by
+> nový worker a osiřely by cron triggery pro obě repa.
+>
+> KV namespace `87395cbadd1d4b3b9abaa4a5840daf93` zůstal v Cloudflare
+> nevyužitý. Smazat ho jde přes `wrangler kv namespace delete`, až bude jisté,
+> že ho nic nepotřebuje. Stejně tak secret `API_SECRET` už kód nečte.
+
+## Nasazení
 
 ```bash
 cd worker
-npm install -g wrangler          # CLI Cloudflare
-wrangler login                    # přihlášení do tvého CF účtu (otevře prohlížeč)
-
-# 1) vytvoř KV namespace a vlož vypsané id do wrangler.toml (pole id = "...")
-wrangler kv namespace create STATE
-
-# 2) nastav sdílené tajemství (stejnou hodnotu pak dáme do GitHub secretu STATE_API_SECRET)
-wrangler secret put API_SECRET    # vloží se hodnota z ../secrets_worker.txt
-
-# 3) nasaď
+npm install -g wrangler
+wrangler login
+wrangler secret put GH_TOKEN   # fine-grained PAT, Actions:write na obou repech
 wrangler deploy
 ```
 
-`wrangler deploy` vypíše veřejnou URL Workeru, např.
-`https://skola-state.<tvuj-subdomain>.workers.dev`. Tu pak nastavíme do GitHub
-secretu `STATE_API_URL`.
-
-## Endpointy
-
-| Metoda | Cesta | Tělo | Vrací |
-|---|---|---|---|
-| GET | `/state` | — | `{ "dismissed": ["id", …] }` |
-| POST | `/dismiss` | `{ "id": "…", "dismissed": true\|false }` | aktualizovaný seznam |
-
-Vše vyžaduje hlavičku `Authorization: Bearer <API_SECRET>`. CORS je povolen jen
-pro `https://dinkotom.github.io`.
+Po odstranění zpráv **není nasazení nutné hned** — běžící worker jen dál
+obsluhuje dvojici endpointů, které už nikdo nevolá. Nasaď při nejbližší
+příležitosti, ať kód v repu odpovídá tomu, co běží.

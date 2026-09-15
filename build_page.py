@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 """Sestaví šifrovanou statickou stránku „Škola“ pro GitHub Pages.
 
-Čte _data/items.json (z fetch_messages.py), _data/digest.md (z `claude -p`)
-a _data/timetable.json (z fetch_timetable.py),
-payload ZAŠIFRUJE (AES-GCM, klíč z hesla přes PBKDF2-SHA256) a vygeneruje
+Čte _data/timetable.json (z fetch_timetable.py), payload ZAŠIFRUJE (AES-GCM, klíč z hesla přes PBKDF2-SHA256) a vygeneruje
 stránku, kde se obsah dešifruje AŽ V PROHLÍŽEČI po zadání rodinného hesla.
 
 Prostředí / GitHub Secrets:
@@ -78,43 +76,10 @@ PAGE = r"""<!DOCTYPE html>
   @keyframes rise{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;}}
   .sect{font-size:.7rem; letter-spacing:.25em; text-transform:uppercase; color:var(--muted);
     margin:26px 2px 6px;}
-  .digest{font-size:.92rem; line-height:1.5;}
-  .digest h2{font-family:"Fraunces",serif; font-size:1.1rem; margin:.4em 0 .2em;}
-  .digest strong{color:var(--green);}
-  .digest ul{margin:.4em 0; padding-left:1.1em;}
-  .digest li{margin:.3em 0;}
-
-  .msg{position:relative;}
-  .msg .top{display:flex; justify-content:space-between; gap:10px; align-items:baseline;}
-  .msg .ttl{font-family:"Fraunces",serif; font-size:1.05rem; font-weight:600;}
-  .msg .when{font-size:.7rem; color:var(--muted); white-space:nowrap;}
-  .msg .from{font-size:.74rem; color:var(--muted); margin-top:2px;}
-  .msg .body{font-size:.85rem; line-height:1.45; margin-top:8px; white-space:pre-wrap;}
-  .msg .att{font-size:.72rem; color:var(--gold); margin-top:8px;}
-  .badge{display:inline-block; background:var(--green); color:#06140d; font-size:.6rem;
-    font-weight:700; letter-spacing:.08em; padding:2px 7px; border-radius:999px; vertical-align:middle; margin-left:8px;}
-  .unread{border-color:rgba(76,201,154,.45); box-shadow:0 0 0 1px rgba(76,201,154,.18);}
-  .msg .chk{display:inline-flex; align-items:center; gap:6px; margin-top:12px;
-    font-size:.72rem; color:var(--muted); cursor:pointer; user-select:none;}
-  .msg .chk input{accent-color:var(--green); width:15px; height:15px; cursor:pointer;}
-  .msg.done{opacity:.5;}
-  .toolbar{display:flex; justify-content:flex-end; margin:8px 2px 0;}
-  .toolbar button{background:none; border:1px solid var(--line); color:var(--muted);
-    border-radius:999px; padding:5px 13px; font-family:inherit; font-size:.72rem; cursor:pointer;}
 
   .when-foot{text-align:center; color:var(--muted); font-size:.72rem; margin-top:18px;}
   .lockbtn{display:block; margin:14px auto 0; background:none; border:1px solid var(--line);
     color:var(--muted); border-radius:999px; padding:7px 16px; font-family:inherit; font-size:.74rem; cursor:pointer;}
-  /* přepínač sekcí */
-  nav.tabs{display:none; gap:6px; margin:22px 0 2px;}
-  nav.tabs.on{display:flex;}
-  nav.tabs button{flex:1; background:var(--panel); border:1px solid var(--line); color:var(--muted);
-    border-radius:12px; padding:11px 8px; font-family:inherit; font-size:.82rem; font-weight:600;
-    cursor:pointer; transition:background .15s,color .15s;}
-  nav.tabs button.sel{background:var(--green); border-color:var(--green); color:#06140d;}
-  nav.tabs .n{display:inline-block; background:var(--red); color:#2b0900; font-size:.6rem; font-weight:700;
-    padding:1px 6px; border-radius:999px; margin-left:6px; vertical-align:middle;}
-  nav.tabs button.sel .n{background:#06140d; color:var(--green);}
 
   /* rozvrh */
   .pills{display:flex; gap:6px; flex-wrap:wrap; margin:16px 2px 0;}
@@ -140,11 +105,18 @@ PAGE = r"""<!DOCTYPE html>
   .tt tr.removed .note, .tt tr.removed .r{color:var(--red);}
   .tt tr.sub .s, .tt tr.sub .note{color:var(--gold);}
   .tt tr.added .s, .tt tr.added .note{color:var(--green);}
-  .tt .nav{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:10px 0 2px;}
-  .tt .nav button{background:none; border:1px solid var(--line); color:var(--muted);
-    border-radius:8px; padding:3px 12px; font:inherit; font-size:.8rem; cursor:pointer;}
-  .tt .nav button:hover{color:var(--green); border-color:var(--green);}
-  .tt .navlab{font-size:.74rem; letter-spacing:.1em; text-transform:uppercase; color:var(--gold);}
+  .ttnav{display:flex; align-items:center; gap:10px; margin:18px 2px 14px;}
+  .ttnav button{flex:0 0 auto; width:38px; height:38px; display:flex; align-items:center;
+    justify-content:center; background:var(--panel); border:1px solid var(--line);
+    color:var(--muted); border-radius:11px; font:inherit; font-size:.8rem; line-height:1;
+    cursor:pointer; transition:color .15s, border-color .15s;}
+  .ttnav button:hover{color:var(--green); border-color:var(--green);}
+  .ttnav .navlab{flex:1 1 auto; min-width:0; text-align:center; font-size:.92rem;
+    font-weight:600; letter-spacing:.01em; color:var(--fg); line-height:1.25;}
+  .ttnav .navlab small{display:block; font-size:.66rem; font-weight:400; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--muted); margin-top:2px;}
+  .ttnav .today-btn{width:auto; padding:0 12px; font-size:.7rem; color:var(--green);
+    border-color:rgba(76,201,154,.4);}
   .tt tr.clubrow .subj{color:var(--green);}
   .tt tbody.clubs tr:first-child td{border-top:2px solid var(--line);}
 
@@ -192,11 +164,6 @@ PAGE = r"""<!DOCTYPE html>
     <div class="err" id="err"></div>
   </div>
 
-  <nav class="tabs" id="tabs">
-    <button data-tab="tt">Rozvrh</button>
-    <button data-tab="msgs">Zprávy<span class="n" id="tabn" style="display:none"></span></button>
-  </nav>
-
   <div id="data"></div>
 
   <footer><a href="https://dinkotom.github.io/domov-60de93c6/">← Doma</a> · zdroj: Bakaláři · obnova á 30 min</footer>
@@ -211,28 +178,26 @@ PAGE = r"""<!DOCTYPE html>
   function esc(s){ return (s||'').replace(/[<>&]/g, function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c];}); }
 
   // minimální markdown -> HTML (nadpisy, tučné, odrážky)
-  function md(src){
-    var lines=(src||'').split('\n'), out=[], inUl=false;
-    function closeUl(){ if(inUl){ out.push('</ul>'); inUl=false; } }
-    for(var i=0;i<lines.length;i++){
-      var l=lines[i];
-      var inline=function(t){ return esc(t)
-        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-        .replace(/`(.+?)`/g,'<code>$1</code>'); };
-      var h=l.match(/^(#{1,3})\s+(.*)$/);
-      var li=l.match(/^\s*[-*]\s+(.*)$/);
-      if(h){ closeUl(); out.push('<h2>'+inline(h[2])+'</h2>'); }
-      else if(li){ if(!inUl){ out.push('<ul>'); inUl=true; } out.push('<li>'+inline(li[1])+'</li>'); }
-      else if(l.trim()===''){ closeUl(); }
-      else { closeUl(); out.push('<p>'+inline(l)+'</p>'); }
-    }
-    closeUl();
-    return out.join('');
-  }
 
   // ---------- rozvrh ----------
   var TT=null, ttView=null, ttDate=null, ttMon=null;
   var DOW=['ne','po','út','st','čt','pá','so'];
+  var DOWFULL=['neděle','pondělí','úterý','středa','čtvrtek','pátek','sobota'];
+
+  function daysBetween(a,b){
+    return Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00'))/86400000);
+  }
+  function dayOffLabel(from,to){
+    var n=daysBetween(from,to);
+    if(n===-1) return 'včera';
+    return n>0 ? ('za '+n+' dní') : ('před '+(-n)+' dny');
+  }
+  function weekOffLabel(from,to){
+    var n=Math.round(daysBetween(from,to)/7);
+    if(n===1) return 'příští týden';
+    if(n===-1) return 'minulý týden';
+    return n>0 ? ('za '+n+' týdny') : ('před '+(-n)+' týdny');
+  }
 
   function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   function shift(d,n){ var x=new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
@@ -387,8 +352,12 @@ PAGE = r"""<!DOCTYPE html>
     if(ttView==='tyden'){
       var mon=new Date(ttMon+'T00:00:00');
       var dates=[0,1,2,3,4].map(function(i){ return iso(shift(mon,i)); });
-      h+='<div class="nav"><button data-step="-7" aria-label="předchozí týden">◀</button>'+
-         '<span class="navlab">'+esc(czLabel(mon)+' – '+czLabel(shift(mon,4)))+'</span>'+
+      var curMon=iso(mondayOf(new Date()));
+      h+='<div class="ttnav"><button data-step="-7" aria-label="předchozí týden">◀</button>'+
+         '<span class="navlab">'+esc(mon.getDate()+'. '+(mon.getMonth()+1)+'. – '+
+           shift(mon,4).getDate()+'. '+(shift(mon,4).getMonth()+1)+'.')+
+         '<small>'+(ttMon===curMon?'tento týden':weekOffLabel(curMon, ttMon))+'</small></span>'+
+         (ttMon===curMon?'':'<button class="today-btn" data-jump="week">dnes</button>')+
          '<button data-step="7" aria-label="další týden">▶</button></div>';
       h+=TT.kids.map(function(k){
            var first=dates.map(function(d){ return dayOf(k,d); }).filter(Boolean)[0];
@@ -396,8 +365,12 @@ PAGE = r"""<!DOCTYPE html>
          }).join('');
     } else {
       var d=new Date(ttDate+'T00:00:00'), wknd=(d.getDay()===0||d.getDay()===6);
-      h+='<div class="nav"><button data-step="-1" aria-label="předchozí den">◀</button>'+
-         '<span class="navlab">'+esc(czLabel(d))+(wknd?' · víkend':'')+'</span>'+
+      var curD=iso(new Date());
+      h+='<div class="ttnav"><button data-step="-1" aria-label="předchozí den">◀</button>'+
+         '<span class="navlab">'+esc(DOWFULL[d.getDay()]+' '+d.getDate()+'. '+(d.getMonth()+1)+'.')+
+         '<small>'+(ttDate===curD?'dnes':(ttDate===iso(shift(new Date(),1))?'zítra':
+           dayOffLabel(curD, ttDate)))+(wknd?' · víkend':'')+'</small></span>'+
+         (ttDate===curD?'':'<button class="today-btn" data-jump="day">dnes</button>')+
          '<button data-step="1" aria-label="další den">▶</button></div>';
       h+=TT.kids.map(function(k){
            var day=dayOf(k, ttDate);
@@ -410,68 +383,10 @@ PAGE = r"""<!DOCTYPE html>
 
   function setView(v){ ttView=v; paintTT(); }
 
-  function setTab(t){
-    var bs=document.querySelectorAll('#tabs button');
-    for(var i=0;i<bs.length;i++){ bs[i].classList.toggle('sel', bs[i].getAttribute('data-tab')===t); }
-    var tt=document.getElementById('s-tt'), ms=document.getElementById('s-msgs');
-    if(tt) tt.hidden=(t!=='tt');
-    if(ms) ms.hidden=(t!=='msgs');
-    try{ sessionStorage.setItem('stab', t); }catch(e){}
-  }
-
-  var API=null, dismissed=new Set(), showDone=false, PAYLOAD=null;
-  function isDone(m){ return dismissed.has(String(m.id)); }
-
-  function msgCard(m){
-    var done=isDone(m);
-    var badge = m.read ? '' : '<span class="badge">nové</span>';
-    var att = (m.attachments && m.attachments.length)
-      ? '<div class="att">📎 '+m.attachments.map(esc).join(', ')+'</div>' : '';
-    var chk = API ? '<label class="chk"><input type="checkbox" class="chk" data-id="'+
-      esc(String(m.id))+'"'+(done?' checked':'')+'> vyřízeno</label>' : '';
-    return '<div class="card msg '+(m.read?'':'unread')+(done?' done':'')+'">'+
-      '<div class="top"><span class="ttl">'+esc(m.title||'(bez předmětu)')+badge+'</span>'+
-      '<span class="when">'+esc(m.sent_label||'')+'</span></div>'+
-      '<div class="from">'+esc(m.sender||'')+'</div>'+
-      (m.text ? '<div class="body">'+esc(m.text)+'</div>' : '')+ att + chk +'</div>';
-  }
-
-  function paintList(){
-    var p=PAYLOAD;
-    var recv=(p.received||[]).filter(function(m){return showDone||!isDone(m);});
-    var notice=(p.noticeboard||[]).filter(function(m){return showDone||!isDone(m);});
-    var doneCount=(p.received||[]).concat(p.noticeboard||[]).filter(isDone).length;
-    var h='';
-    if(recv.length){
-      var nNew=recv.filter(function(m){return !m.read && !isDone(m);}).length;
-      h += '<div class="sect">Zprávy ('+recv.length+(nNew?(', '+nNew+' nových'):'')+')</div>';
-      h += recv.map(msgCard).join('');
-    }
-    if(notice.length){ h += '<div class="sect">Nástěnka</div>'+notice.map(msgCard).join(''); }
-    if(!recv.length && !notice.length){
-      h += '<div class="card" style="text-align:center;color:var(--muted)">Vše vyřízeno 🎉</div>';
-    }
-    document.getElementById('list').innerHTML=h;
-    var nb=document.getElementById('tabn');
-    if(nb){
-      var nNewAll=(p.received||[]).filter(function(m){return !m.read && !isDone(m);}).length;
-      nb.textContent=nNewAll; nb.style.display=nNewAll?'':'none';
-    }
-    var tb=document.getElementById('done-toggle');
-    if(API && doneCount){ tb.style.display=''; tb.textContent=showDone?'Skrýt vyřízené':('Zobrazit vyřízené ('+doneCount+')'); }
-    else { tb.style.display='none'; }
-  }
-
   function render(p){
-    PAYLOAD=p; API=p.api||null; TT=p.tt||null;
+    TT=p.tt||null;
 
-    var m='';
-    if(p.digest){ m += '<div class="card digest">'+md(p.digest)+'</div>'; }
-    m += '<div class="toolbar"><button id="done-toggle" style="display:none"></button></div>';
-    m += '<div id="list"></div>';
-    m += '<div class="when-foot">žák: '+esc(p.student||'')+' · aktualizováno '+esc(p.ts||'')+'</div>';
-
-    var h='<section id="s-tt"></section><section id="s-msgs" hidden>'+m+'</section>';
+    var h='<section id="s-tt"></section>';
     h += '<button class="lockbtn" onclick="lockNow()">Zamknout</button>';
     dataEl.innerHTML=h; dataEl.classList.add('on'); lock.style.display='none';
 
@@ -481,15 +396,14 @@ PAGE = r"""<!DOCTYPE html>
     if(!ttMon) ttMon=iso(mondayOf(new Date(ttDate+'T00:00:00')));
     paintTT();
 
-    var tabs=document.getElementById('tabs');
-    tabs.classList.add('on');
-    tabs.addEventListener('click', function(e){
-      var b=e.target.closest('button[data-tab]');
-      if(b) setTab(b.getAttribute('data-tab'));
-    });
     document.getElementById('s-tt').addEventListener('click', function(e){
       var v=e.target.closest('button[data-v]'), st=e.target.closest('button[data-step]');
       if(v){ setView(v.getAttribute('data-v')); return; }
+      var jp=e.target.closest('button[data-jump]');
+      if(jp){
+        var now=new Date();
+        ttDate=iso(now); ttMon=iso(mondayOf(now)); paintTT(); return;
+      }
       if(st){
         var n=parseInt(st.getAttribute('data-step'),10);
         if(ttView==='tyden') ttMon=iso(shift(new Date(ttMon+'T00:00:00'), n));
@@ -500,33 +414,8 @@ PAGE = r"""<!DOCTYPE html>
         paintTT();
       }
     });
-    var saved=null; try{ saved=sessionStorage.getItem('stab'); }catch(e){}
-    setTab(saved==='msgs'?'msgs':'tt');
-
-    document.getElementById('done-toggle').addEventListener('click', function(){ showDone=!showDone; paintList(); });
-    dataEl.addEventListener('change', function(e){
-      var t=e.target;
-      if(t && t.matches && t.matches('input.chk')){ toggleDone(t.getAttribute('data-id'), t.checked); }
-    });
-    paintList();
-    refreshState();
   }
 
-  function authHeaders(){ return {'Authorization':'Bearer '+API.secret, 'Content-Type':'application/json'}; }
-  async function refreshState(){
-    if(!API) return;
-    try{
-      var r=await fetch(API.url+'/state', {headers:authHeaders()});
-      if(r.ok){ var j=await r.json(); dismissed=new Set((j.dismissed||[]).map(String)); paintList(); }
-    }catch(e){}
-  }
-  async function toggleDone(id, val){
-    if(!API) return;
-    if(val) dismissed.add(String(id)); else dismissed.delete(String(id));
-    paintList();
-    try{ await fetch(API.url+'/dismiss', {method:'POST', headers:authHeaders(),
-      body:JSON.stringify({id:String(id), dismissed:val})}); }catch(e){}
-  }
   function lockNow(){ try{sessionStorage.removeItem('spw');}catch(e){}; location.reload(); }
 
   async function decrypt(pw){
@@ -577,46 +466,16 @@ def main():
         return
 
     try:
-        with open("_data/items.json", encoding="utf-8") as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        sys.exit("Chybí _data/items.json (spusť nejdřív fetch_messages.py).")
-
-    digest = ""
-    try:
-        with open("_data/digest.md", encoding="utf-8") as f:
-            digest = f.read().strip()
-    except FileNotFoundError:
-        print("VAROVÁNÍ: chybí _data/digest.md – stránka bude bez AI shrnutí.", file=sys.stderr)
-
-    try:
         with open("_data/timetable.json", encoding="utf-8") as f:
             tt = json.load(f)
     except FileNotFoundError:
-        tt = None
-        print("VAROVÁNÍ: chybí _data/timetable.json – stránka bude bez rozvrhů.", file=sys.stderr)
+        sys.exit("Chybí _data/timetable.json (spusť nejdřív fetch_timetable.py).")
 
-    payload = {
-        "ts": data.get("ts"),
-        "student": data.get("student"),
-        "unread_count": data.get("unread_count", 0),
-        "digest": digest,
-        "received": data.get("received", []),
-        "noticeboard": data.get("noticeboard", []),
-        "tt": tt,
-    }
-    # Konfigurace stavového backendu jde DOVNITŘ šifrovaného payloadu —
-    # tajemství je tak dostupné až po odemčení rodinným heslem, nikdy v cleartextu.
-    api_url = os.getenv("STATE_API_URL")
-    api_secret = os.getenv("STATE_API_SECRET")
-    if api_url and api_secret:
-        payload["api"] = {"url": api_url.rstrip("/"), "secret": api_secret}
-
+    payload = {"ts": tt.get("ts"), "tt": tt}
     enc = encrypt(payload, password)
     build_page(enc, configured=True)
-    n_kids = len((tt or {}).get("kids") or [])
-    print(f"Hotovo: {len(payload['received'])} zpráv, digest {'ano' if digest else 'ne'}, "
-          f"rozvrhy {n_kids} dětí, zašifrováno.", file=sys.stderr)
+    n_kids = len(tt.get("kids") or [])
+    print(f"Hotovo: rozvrhy {n_kids} dětí, zašifrováno.", file=sys.stderr)
 
 
 if __name__ == "__main__":

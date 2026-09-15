@@ -32,15 +32,6 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
 
-      - name: Stáhnout zprávy z Bakalářů
-        env:
-          BAKALARI_BASE_URL: ${{ secrets.BAKALARI_BASE_URL }}
-          BAKALARI_USERNAME: ${{ secrets.BAKALARI_USERNAME }}
-          BAKALARI_PASSWORD: ${{ secrets.BAKALARI_PASSWORD }}
-          STATE_API_URL: ${{ secrets.STATE_API_URL }}
-          STATE_API_SECRET: ${{ secrets.STATE_API_SECRET }}
-        run: python fetch_messages.py
-
       - name: Stáhnout rozvrhy kluků
         env:
           BAKALARI_BASE_URL: ${{ secrets.BAKALARI_BASE_URL }}
@@ -51,27 +42,9 @@ jobs:
           BAKALARI_OTA_PASSWORD: ${{ secrets.BAKALARI_OTA_PASSWORD }}
         run: python fetch_timetable.py
 
-      - name: Obnovit stav digestu (kvůli přeskočení Claude, když nic nového)
-        uses: actions/cache@v4
-        with:
-          path: _data/digest_state.json
-          key: digest-state-${{ github.run_id }}
-          restore-keys: |
-            digest-state-
-
-      - name: Nainstalovat Claude Code
-        run: npm install -g @anthropic-ai/claude-code
-
-      - name: Vytvořit AI digest (Claude jen když přibyly/změnily se zprávy)
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: python make_digest.py
-
       - name: Sestavit šifrovanou stránku
         env:
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
-          STATE_API_URL: ${{ secrets.STATE_API_URL }}
-          STATE_API_SECRET: ${{ secrets.STATE_API_SECRET }}
         run: python build_page.py
 
       - uses: actions/upload-pages-artifact@v3
