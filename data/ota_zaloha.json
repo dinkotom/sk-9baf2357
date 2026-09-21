@@ -313,10 +313,10 @@
     "sudý týden": {
       "captured": {
         "1": "2026-09-14",
-        "2": "2026-09-15",
-        "3": "2026-09-16",
-        "4": "2026-09-17",
-        "5": "2026-09-18"
+        "2": "2026-09-29",
+        "3": "2026-09-30",
+        "4": "2026-10-01",
+        "5": "2026-10-02"
       },
       "week": {
         "1": [
@@ -386,6 +386,24 @@
         ],
         "2": [
           {
+            "abbrev": "Tv",
+            "from": "8:00",
+            "hour": "1",
+            "room": "Pos",
+            "subject": "Tělesná výchova",
+            "teacher": "Jiří Rachfalík",
+            "to": "8:45"
+          },
+          {
+            "abbrev": "FJ",
+            "from": "8:55",
+            "hour": "2",
+            "room": "O2",
+            "subject": "Francouzský jazyk",
+            "teacher": "Mgr. Jana Tluštíková",
+            "to": "9:40"
+          },
+          {
             "abbrev": "M",
             "from": "10:00",
             "hour": "3",
@@ -402,6 +420,33 @@
             "subject": "Anglický jazyk",
             "teacher": "Bc. Christopher Eddins",
             "to": "11:40"
+          },
+          {
+            "abbrev": "Bi",
+            "from": "11:50",
+            "hour": "5",
+            "room": "1.C",
+            "subject": "Biologie",
+            "teacher": "Mgr. Matěj Ujazdowski Zvolánek",
+            "to": "12:35"
+          },
+          {
+            "abbrev": "F",
+            "from": "12:40",
+            "hour": "6",
+            "room": "PrU",
+            "subject": "Fyzika",
+            "teacher": "Mgr. Jaromír Tluštík",
+            "to": "13:25"
+          },
+          {
+            "abbrev": "ZSV",
+            "from": "14:20",
+            "hour": "8",
+            "room": "1.C",
+            "subject": "Základy společenských věd",
+            "teacher": "Mgr. Kateřina Maňáková",
+            "to": "15:05"
           }
         ],
         "3": [
@@ -442,6 +487,15 @@
             "to": "10:45"
           },
           {
+            "abbrev": "FJ",
+            "from": "10:55",
+            "hour": "4",
+            "room": "O2",
+            "subject": "Francouzský jazyk",
+            "teacher": "Mgr. Jana Tluštíková",
+            "to": "11:40"
+          },
+          {
             "abbrev": "M",
             "from": "11:50",
             "hour": "5",
@@ -449,6 +503,15 @@
             "subject": "Matematika",
             "teacher": "Mgr. Petr Otipka Ph.D.",
             "to": "12:35"
+          },
+          {
+            "abbrev": "Tv",
+            "from": "12:40",
+            "hour": "6",
+            "room": "Pos",
+            "subject": "Tělesná výchova",
+            "teacher": "Jiří Rachfalík",
+            "to": "13:25"
           }
         ],
         "4": [
@@ -508,6 +571,24 @@
           }
         ],
         "5": [
+          {
+            "abbrev": "CJ",
+            "from": "8:00",
+            "hour": "1",
+            "room": "1.C",
+            "subject": "Český jazyk a literatura",
+            "teacher": "Mgr. Lucie Jemelková",
+            "to": "8:45"
+          },
+          {
+            "abbrev": "F",
+            "from": "8:55",
+            "hour": "2",
+            "room": "PrU",
+            "subject": "Fyzika",
+            "teacher": "Mgr. Jaromír Tluštík",
+            "to": "9:40"
+          },
           {
             "abbrev": "AJ",
             "from": "10:00",
